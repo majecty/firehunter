@@ -32,6 +32,7 @@ export function Home({ ...props }) {
     <p>
       영상 싱크: {count}
     </p>
+    <button onClick={() => route('/aframe')}>aframe 샘플로 이동</button>
     <pre>{JSON.stringify(props, null, 2)}</pre>
   </div>
 }
