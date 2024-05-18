@@ -10,12 +10,16 @@ declare module "preact" {
     interface IntrinsicElements {
       "a-videosphere": any;
       "a-assets": any;
+      "a-text": any;
+      "a-camera": any;
+      "a-entity": any;
     }
   }
 }
 
 export function AframeSample({ ...props }) {
   console.log(props);
+
 
   return <div>
     <h1>AframeSample</h1>
@@ -28,5 +32,7 @@ export function AframeSample({ ...props }) {
       </a-assets>
       <a-videosphere src="#sample-video"></a-videosphere>
     </Scene>
+
+    <p style={{ position: "absolute", top: "70%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999", color: "white", backgroundColor: "black" }}>hi</p>
   </div>
 }
