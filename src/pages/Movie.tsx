@@ -69,5 +69,6 @@ export function Movie({ ...props }) {
 
     <p style={{ position: "absolute", top: "70%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999", color: "white", backgroundColor: "black" }}>{props.id}번째 타블렛 싱크 목표: {target} 현재: {current}</p>
     <button style={{ position: "absolute", top: "90%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999"}} onClick={() => setEnableSync(!enableSync)}>싱크 {enableSync ? "끄기" : "켜기"}</button>
+    {videoRef.current !== null && videoRef.current.paused && <button style={{ position: "absolute", top: "95%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999"}} onClick={() => videoRef.current!.play()}>재생</button>}
   </div>
 }
