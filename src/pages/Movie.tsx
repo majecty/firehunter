@@ -9,6 +9,7 @@ export function Movie({ ...props }) {
   const [target, setTarget] = useState(0);
   const [current, setCurrent] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [enableSync, setEnableSync] = useState(true);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -28,6 +29,9 @@ export function Movie({ ...props }) {
   useEffect(() => {
     if (videoRef.current === null) {
       console.log("videoRef is null");
+      return;
+    }
+    if (!enableSync) {
       return;
     }
     const currentMillis = videoRef.current.currentTime * 1000;
@@ -64,5 +68,6 @@ export function Movie({ ...props }) {
     </Scene>
 
     <p style={{ position: "absolute", top: "70%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999", color: "white", backgroundColor: "black" }}>{props.id}번째 타블렛 싱크 목표: {target} 현재: {current}</p>
+    <button style={{ position: "absolute", top: "90%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999"}} onClick={() => setEnableSync(!enableSync)}>싱크 {enableSync ? "끄기" : "켜기"}</button>
   </div>
 }
