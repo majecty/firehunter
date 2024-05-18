@@ -34,7 +34,10 @@ export function Movie({ ...props }) {
     const now = new Date();
     const currentTimeMillis =  now.getSeconds() * 1000 + now.getMilliseconds();
 
-    const diff = Math.abs(currentMillis - currentTimeMillis);
+    let diff = Math.abs(currentMillis - currentTimeMillis);
+    if (diff > 30 * 1000) {
+      diff = 60 * 1000 - diff;
+    }
     if (diff > 500) {
       videoRef.current.currentTime = now.getSeconds() + now.getMilliseconds() / 1000;
       console.log("current ", currentMillis, "now ", now.getSeconds() * 1000 + now.getMilliseconds(), "diff", diff);
