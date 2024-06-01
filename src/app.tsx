@@ -1,8 +1,8 @@
 import './app.css'
 import Router from 'preact-router'
-import { Home } from './pages/Home'
-import { Movie } from './pages/Movie'
-import { AframeSample } from './pages/AframeSample'
+import { Home } from './pages/firsttry/Home'
+import { Movie } from './pages/firsttry/Movie'
+import { AframeSample } from './pages/firsttry/AframeSample'
 
 export function App() {
   return (
