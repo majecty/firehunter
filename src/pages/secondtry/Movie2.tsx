@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { Entity, Scene } from "aframe-react";
 
 const sampleVideoUrl = "https://firehunter.s3.ap-northeast-2.amazonaws.com/0518sample.mp4";
+const smallSampleVideoUrl = "https://firehunter.s3.ap-northeast-2.amazonaws.com/0609sample.mp4";
 
 export function Movie2({ ...props }) {
   const [target, setTarget] = useState(0);
@@ -95,12 +96,13 @@ export function Movie2({ ...props }) {
     <p style={{ position: "absolute", top: "95%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999", color: "white", backgroundColor: "black" }}>FOV</p>
     <input type="range" min="30" max="120" value={fov} onChange={(e) => setFov(parseInt((e.target! as any).value))} style={{ position: "absolute", top: "95%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999"}} />
     {progress !== 1 && <progress value={progress} max="1" style={{ position: "absolute", top: "60%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999"}}></progress>}
-    {progress === 0 && <button style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999"}} onClick={() => loadVideo(handleXMLHTTPRequestEvent)}>영상 로드</button>}
+    {progress === 0 && <button style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999"}} onClick={() => loadVideo(handleXMLHTTPRequestEvent, sampleVideoUrl)}>영상 로드</button>}
+    {progress === 0 && <button style={{ position: "absolute", top: "40%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999"}} onClick={() => loadVideo(handleXMLHTTPRequestEvent, smallSampleVideoUrl)}>작은 영상 로드</button>}
     {progress === 1 && videoRef.current !== null && videoRef.current.paused && <button style={{ position: "absolute", top: "95%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999"}} onClick={() => videoRef.current!.play()}>재생</button>}
   </div>
 }
 
-function loadVideo(handleXMLHTTPRequestEvent: (event: Event) => void){
+function loadVideo(handleXMLHTTPRequestEvent: (event: Event) => void, videoUrl: string){
   const xhr = new XMLHttpRequest();
   xhr.addEventListener("loadstart", handleXMLHTTPRequestEvent);
   xhr.addEventListener("load", handleXMLHTTPRequestEvent);
@@ -108,7 +110,7 @@ function loadVideo(handleXMLHTTPRequestEvent: (event: Event) => void){
   xhr.addEventListener("progress", handleXMLHTTPRequestEvent);
   xhr.addEventListener("error", handleXMLHTTPRequestEvent);
   xhr.addEventListener("abort", handleXMLHTTPRequestEvent);
-  xhr.open("GET", sampleVideoUrl);
+  xhr.open("GET", videoUrl);
   xhr.responseType = "blob";
   xhr.send();
 }
