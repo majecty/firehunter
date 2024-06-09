@@ -5,7 +5,7 @@ export function Home({ ...props }) {
   const [count, setCount] = useState(0);
 
   const handleClick = (movieId: number) => {
-    route(`/movie/${movieId}`);
+    route(`/first/movie/${movieId}`);
   };
 
   useEffect(() => {
@@ -21,6 +21,10 @@ export function Home({ ...props }) {
 
   return <div>
     <h1>Home</h1>
+    <p>
+      단순하게 윕에서 영상을 실시간 스트리밍하면서 싱크를 맞춤
+    </p>
+    <br />
     <button onClick={() => handleClick(1)}> 첫번째 패드 </button>
     <button onClick={() => handleClick(2)}> 두번째 패드 </button>
     <button onClick={() => handleClick(3)}> 세번째 패드 </button>
