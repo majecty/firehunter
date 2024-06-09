@@ -96,7 +96,7 @@ export function Movie2({ ...props }) {
     <input type="range" min="30" max="120" value={fov} onChange={(e) => setFov(parseInt((e.target! as any).value))} style={{ position: "absolute", top: "95%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999"}} />
     {progress !== 1 && <progress value={progress} max="1" style={{ position: "absolute", top: "60%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999"}}></progress>}
     {progress === 0 && <button style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999"}} onClick={() => loadVideo(handleXMLHTTPRequestEvent)}>영상 로드</button>}
-    {videoRef.current !== null && videoRef.current.paused && <button style={{ position: "absolute", top: "95%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999"}} onClick={() => videoRef.current!.play()}>재생</button>}
+    {progress === 1 && videoRef.current !== null && videoRef.current.paused && <button style={{ position: "absolute", top: "95%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999"}} onClick={() => videoRef.current!.play()}>재생</button>}
   </div>
 }
 
