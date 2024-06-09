@@ -3,8 +3,8 @@ import { useState } from "preact/hooks";
 const sampleVideoUrl = "https://firehunter.s3.ap-northeast-2.amazonaws.com/0518sample.mp4";
 
 export function VideoLoadTest({ ...props }) {
+  console.log(props);
   const [progress, setProgress] = useState(0);
-  const [blobUri, setBlobUri] = useState("");
 
   function handleXMLHTTPRequestEvent(event: Event) {
     console.log("handleXMLHTTPRequestEvent", event);

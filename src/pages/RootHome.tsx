@@ -1,6 +1,7 @@
 import { route } from "preact-router";
 
 export function RootHome({ ...props }) {
+  console.log('RootHome', props);
   return <div>
     <p>
       360 영상을 테스트하기 위한 페이지
