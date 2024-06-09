@@ -4,6 +4,7 @@ const sampleVideoUrl = "https://firehunter.s3.ap-northeast-2.amazonaws.com/0518s
 
 export function VideoLoadTest({ ...props }) {
   const [progress, setProgress] = useState(0);
+  const [blobUri, setBlobUri] = useState("");
 
   function handleXMLHTTPRequestEvent(event: Event) {
     console.log("handleXMLHTTPRequestEvent", event);
@@ -12,6 +13,12 @@ export function VideoLoadTest({ ...props }) {
       return;
     }
     setProgress((event as any).loaded / (event as any).total);
+
+    if (event.type === "loadend") {
+      console.log("loadend");
+      const newBlobURI = URL.createObjectURL((event.target as XMLHttpRequest).response);
+      document.getElementById("video-test-video")!.setAttribute("src", newBlobURI);
+    }
   }
 
 
@@ -20,6 +27,17 @@ export function VideoLoadTest({ ...props }) {
     <button onClick={() => loadVideo(handleXMLHTTPRequestEvent)}> Load Video </button>
     <br />
     <progress value={progress} max="1"></progress>
+    <br />
+    <button onClick={() => {
+      const video = document.getElementById("video-test-video") as HTMLVideoElement;
+      if (video.paused) {
+        video.play();
+      } else {
+        video.pause();
+      }
+    }}> Play/Pause </button>
+    <br />
+    <video id="video-test-video"></video>
   </div>
 }
 
@@ -32,6 +50,7 @@ function loadVideo(handleXMLHTTPRequestEvent: (event: Event) => void){
   xhr.addEventListener("error", handleXMLHTTPRequestEvent);
   xhr.addEventListener("abort", handleXMLHTTPRequestEvent);
   xhr.open("GET", sampleVideoUrl);
+  xhr.responseType = "blob";
   xhr.send();
 }
 
