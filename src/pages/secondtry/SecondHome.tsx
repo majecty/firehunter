@@ -21,6 +21,8 @@ export function Home2({ ...props }) {
 
   return <div>
     <h1>Home2</h1>
+    <button onClick={() => route('/second/videoloadtest')}>Video load test</button>
+    <br />
     <button onClick={() => handleClick(1)}> 첫번째 패드 </button>
     <button onClick={() => handleClick(2)}> 두번째 패드 </button>
     <button onClick={() => handleClick(3)}> 세번째 패드 </button>
