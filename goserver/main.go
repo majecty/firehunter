@@ -3,7 +3,6 @@ package main
 // https://github.com/pion/webrtc/blob/master/examples/play-from-disk/main.go
 
 import (
-	"bufio"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -11,21 +10,75 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/pion/webrtc/v4"
 	"github.com/pion/webrtc/v4/pkg/media"
 	"github.com/pion/webrtc/v4/pkg/media/ivfreader"
+
+	g "github.com/AllenDang/giu"
 )
 
 const (
 	largeVideoFileName = "./resource/output.ivf"
 )
 
-func main() {
-	println("Hello, World!")
+var (
+	waitingReadForSessionDescription atomic.Bool
+	sessionDescription               string = ""
+	sessionDecriptionChannel                = make(chan string)
 
+	waitingForExchangeAnswer atomic.Bool
+	atomicAnswer             atomic.Value
+	uiAnswer                 string = ""
+)
+
+func onClickMe() {
+	fmt.Println("Im sooooooo cute!!")
+	waitingReadForSessionDescription.Store(false)
+	sessionDecriptionChannel <- sessionDescription
+}
+
+func loop() {
+	var layout g.Layout
+
+	if waitingReadForSessionDescription.Load() {
+		layout = g.Layout{
+			g.Label("Hello world from giu"),
+			g.Label("Enter the session description"),
+			g.Row(
+				g.InputTextMultiline(&sessionDescription),
+				g.Button("DONE").OnClick(onClickMe),
+			),
+		}
+	} else if waitingForExchangeAnswer.Load() {
+		uiAnswer = atomicAnswer.Load().(string)
+		layout = g.Layout{
+			g.Label("Hello world from giu"),
+			g.Label("Copy the exchange answer"),
+			g.InputTextMultiline(&uiAnswer).Size(-1, -1),
+			g.Button("Copy").OnClick(func() {
+				g.Context.GetPlatform().SetClipboard(uiAnswer)
+				waitingForExchangeAnswer.Store(false)
+			}),
+		}
+	}
+
+	g.SingleWindow().Layout(layout)
+}
+
+func giuMain() {
+	wnd := g.NewMasterWindow("Hello world", 400, 200, g.MasterWindowFlagsNotResizable)
+	wnd.Run(loop)
+}
+
+func main() {
+	go webrtcMain()
+	giuMain()
+}
+
+func webrtcMain() {
 	_, err := os.Stat(largeVideoFileName)
 	haveLargeVideoFile := !os.IsNotExist(err)
 	if haveLargeVideoFile {
@@ -112,7 +165,9 @@ func main() {
 			panic(ivfErr)
 		}
 
+		fmt.Println("Wait for ICE Connection Connected")
 		<-iceConnectedCtx.Done()
+		fmt.Println("ICE Connection Connected, start sending video track")
 
 		ticker := time.NewTicker(
 			time.Millisecond *
@@ -141,7 +196,7 @@ func main() {
 	}()
 
 	peerConnection.OnICEConnectionStateChange(func(conectionState webrtc.ICEConnectionState) {
-		fmt.Printf("Connection State has changed %s \n", conectionState.String())
+		fmt.Printf("ICE Connection State has changed %s \n", conectionState.String())
 		if conectionState == webrtc.ICEConnectionStateConnected {
 			iceConnectedCtxCancel()
 		}
@@ -188,6 +243,8 @@ func main() {
 
 	// answer in base64
 	fmt.Println(encode(peerConnection.LocalDescription()))
+	atomicAnswer.Store(encode(peerConnection.LocalDescription()))
+	waitingForExchangeAnswer.Store(true)
 
 	// Block forever
 	select {}
@@ -205,20 +262,27 @@ func decode(in string, obj *webrtc.SessionDescription) {
 }
 
 func readUntilNewLine() (in string) {
-	var err error
-	r := bufio.NewReader(os.Stdin)
-	for {
-		in, err = r.ReadString('\n')
-		if err != nil && !errors.Is(err, io.EOF) {
-			panic(err)
-		}
+	fmt.Println("Waiting for input")
+	waitingReadForSessionDescription.Store(true)
+	in = <-sessionDecriptionChannel
+	fmt.Println("Received")
+	// fmt.Println("Enter the value and press enter:")
+	// var err error
+	// r := bufio.NewReader(os.Stdin)
+	// for {
+	// 	fmt.Println("Waiting for input")
+	// 	in, err = r.ReadString('\n')
+	// 	fmt.Println("Received")
+	// 	if err != nil && !errors.Is(err, io.EOF) {
+	// 		panic(err)
+	// 	}
 
-		if in = strings.TrimSpace(in); len(in) > 0 {
-			break
-		}
-	}
+	// 	if in = strings.TrimSpace(in); len(in) > 0 {
+	// 		break
+	// 	}
+	// }
 
-	fmt.Println("")
+	// fmt.Println("Received done")
 	return
 }
 
