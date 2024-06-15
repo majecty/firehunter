@@ -13,5 +13,9 @@ export function RootHome({ ...props }) {
     <button onClick={() => route('/second')}>
       두번째 시도: 영상을 미리 로딩하고 싱크를 맞춤
     </button>
+    <br />
+    <button onClick={() => route('/third')}>
+      세번째 시도: webrtc 스트리밍을 사용
+    </button>
     </div>;
 }

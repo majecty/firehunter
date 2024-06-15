@@ -7,6 +7,7 @@ import { Home2 } from './pages/secondtry/SecondHome'
 import { Movie2 } from './pages/secondtry/Movie2'
 import { VideoLoadTest } from './pages/secondtry/ViodeoLoadTest'
 import { RootHome } from './pages/RootHome'
+import { ThirdHome } from './pages/thirdtry/ThirdHome'
 
 export function App() {
   return (
@@ -21,6 +22,8 @@ export function App() {
       <Home2 path="/second"/>
       <Movie2 path="/second/movie/:id"/>
       <VideoLoadTest path="/second/videoloadtest"/>
+
+      <ThirdHome path="/third"/>
     </Router>
     </>
   )
