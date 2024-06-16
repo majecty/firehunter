@@ -9,6 +9,7 @@ import { VideoLoadTest } from './pages/secondtry/ViodeoLoadTest'
 import { RootHome } from './pages/RootHome'
 import { ThirdHome } from './pages/thirdtry/ThirdHome'
 import { WebRTCManualSessionExchangeSample } from './pages/thirdtry/ManualWebRTCSample'
+import { WebRTCAutoSessionExchangeSample } from './pages/thirdtry/AutoWebRTCSAmple'
 
 export function App() {
   return (
@@ -26,6 +27,7 @@ export function App() {
 
       <ThirdHome path="/third"/>
       <WebRTCManualSessionExchangeSample path="/third/webrtcmanualsessionexchange"/>
+      <WebRTCAutoSessionExchangeSample path="/third/webrtcautomaticsessionexchange"/>
     </Router>
     </>
   )

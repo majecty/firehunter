@@ -8,5 +8,9 @@ export function ThirdHome({ ...props }) {
     <button onClick={() => {
       route('/third/webrtcmanualsessionexchange')
     }}>수동 webrtc 테스트</button>
+    <button onClick={() => {
+      route('/third/webrtcautomaticsessionexchange')
+    }
+    }>자동 webrtc 테스트</button>
   </div>
 }

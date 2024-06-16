@@ -2,14 +2,16 @@ import { route } from "preact-router";
 import { useEffect, useRef, useState } from "preact/hooks";
 
 const pc = new RTCPeerConnection({
-  iceServers: [{
-    urls: 'stun:stun.l.google.com:19302'
-  }, {
-    urls: "stun:stun2.1.google.com:19302",
-  }]
+  iceServers: [
+  //   {
+  //   urls: 'stun:stun.l.google.com:19302'
+  // }, {
+  //   urls: "stun:stun2.1.google.com:19302",
+  // }
+]
 });
 
-export function WebRTCManualSessionExchangeSample({ ...props }) {
+export function WebRTCAutoSessionExchangeSample({ ...props }) {
   console.log("ThirdHome", props);
   const [logs, setLogs] = useState<string[]>([]);
   const [localSessionDescription, setLocalSessionDescription] = useState<string>('');
@@ -49,7 +51,37 @@ export function WebRTCManualSessionExchangeSample({ ...props }) {
         setLocalSessionDescription(
           btoa(JSON.stringify(pc.localDescription))
         )
+
+        fetch("http://localhost:8124/sessiondescription", {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            sessionDescription: btoa(JSON.stringify(pc.localDescription))
+          })
+        }).then((response) => {
+          return response.json()
+        }).then((data) => {
+          if (typeof data.answer != 'string') {
+            console.error('data.answer is not a string');
+            console.error(data);
+            return;
+          }
+
+          if (data.answer === '') {
+            console.error('data.answer is empty');
+            console.error(data);
+            return;
+          }
+
+          console.log("setRemoteSessionDescription");
+          setRemoteSessionDescription(data.answer);
+
+          pc.setRemoteDescription(JSON.parse(atob(data.answer)));
+        });
       } else {
+        setLocalSessionDescription('.' + Math.random().toPrecision(2))
         console.log('onicecandidate', event.candidate);
       }
     };
@@ -63,7 +95,7 @@ export function WebRTCManualSessionExchangeSample({ ...props }) {
   }, [])
 
   return <div>
-    <h2>Manual webrtc connect</h2>
+    <h2>Auto webrtc connect</h2>
     <button onClick={() => {
       route('/third')
     }}>Go back</button>
