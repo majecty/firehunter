@@ -57,11 +57,11 @@ func loop() {
 		layout = g.Layout{
 			g.Label("Hello world from giu"),
 			g.Label("Copy the exchange answer"),
-			g.InputTextMultiline(&uiAnswer).Size(-1, -1),
 			g.Button("Copy").OnClick(func() {
 				g.Context.GetPlatform().SetClipboard(uiAnswer)
 				waitingForExchangeAnswer.Store(false)
 			}),
+			g.InputTextMultiline(&uiAnswer).Size(-1, -1),
 		}
 	}
 

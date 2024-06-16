@@ -1,5 +1,5 @@
 import { createRef } from "preact";
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 
 const pc = new RTCPeerConnection({
   iceServers: [{
@@ -14,7 +14,7 @@ export function ThirdHome({ ...props }) {
   const [logs, setLogs] = useState<string[]>([]);
   const [localSessionDescription, setLocalSessionDescription] = useState<string>('');
   const [remoteSessionDescription, setRemoteSessionDescription] = useState<string>('');
-  const videoRootRef = createRef();
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     console.log("ThirdHome useEffect");
@@ -25,29 +25,27 @@ export function ThirdHome({ ...props }) {
       el.autoplay = true;
       el.controls = true;
 
-      if (videoRootRef.current == null) {
+      if (videoRef.current == null) {
         console.error('videoRootRef.current is null while ontrack');
         return;
       }
-      videoRootRef.current.appendChild(el);
-
-      // const remoteVideosElement = document.getElementById('remoteVideos');
-      // if (remoteVideosElement == null) {
-      //   console.error('remoteVideosElement is null');
-      //   return;
-      // }
-      // remoteVideosElement.appendChild(el);
+      if (event.streams.length !== 1) {
+        console.error('event.streams.length !== 1 while ontrack ' + event.streams.length);
+        console.error(event.streams);
+        return;
+      }
+      videoRef.current.srcObject = event.streams[0];
     };
 
     pc.oniceconnectionstatechange = (event) => {
-      // console.log('oniceconnectionstatechange', event);
-      // setLogs((prev) => [...prev, `oniceconnectionstatechange: ${pc.iceConnectionState}`]);
+      console.log('oniceconnectionstatechange', event);
+      setLogs((prev) => [...prev, `oniceconnectionstatechange: ${pc.iceConnectionState}`]);
     };
 
     pc.onicecandidate = (event) => {
       console.log('onicecandidate', event);
       if (event.candidate == null) {
-        console.log(JSON.stringify(pc.localDescription))
+        console.log("localDescription", (JSON.stringify(pc.localDescription)?.substring(0, 50) ?? 'localDescription is null') + (JSON.stringify(pc.localDescription)?.length > 50 ? '...' : ''));
         setLocalSessionDescription(
           btoa(JSON.stringify(pc.localDescription))
         )
@@ -101,7 +99,15 @@ export function ThirdHome({ ...props }) {
         console.error('Failed to set remote description:', e);
       }
     }}>Start Session</button>
-    <div ref={videoRootRef}></div>
+    <video ref={videoRef} autoplay muted></video>
     <p>{logs.join('\n')}</p>
+    <button onClick={() => {
+      if (videoRef.current == null) {
+        console.log('videoRootRef.current is null')
+      } else {
+        console.log('videoRootRef.current is not null')
+        console.log(videoRef.current);
+      }
+    }}>check videoref</button>
   </div>
 }
