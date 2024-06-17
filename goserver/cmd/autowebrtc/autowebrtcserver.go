@@ -115,7 +115,9 @@ func webrtcMain() {
 	peerConnection, err := webrtc.NewPeerConnection(webrtc.Configuration{
 		ICEServers: []webrtc.ICEServer{
 			{
-				URLs: []string{"stun:stun.l.google.com:19302"},
+				URLs:       []string{"turn:turn.i.juhyung.dev:3478"},
+				Username:   "juhyung2",
+				Credential: "juhyung2",
 			},
 		},
 	})
