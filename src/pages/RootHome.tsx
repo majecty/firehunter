@@ -17,5 +17,8 @@ export function RootHome({ ...props }) {
     <button onClick={() => route('/third')}>
       세번째 시도: webrtc 스트리밍을 사용
     </button>
+    <button onClick={() => route('/fourth')}>
+      네번째 시도: hls 스트리밍을 사용
+    </button>
     </div>;
 }
