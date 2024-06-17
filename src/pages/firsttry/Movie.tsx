@@ -6,6 +6,7 @@ import { Entity, Scene } from "aframe-react";
 const sampleVideoUrl = "https://firehunter.s3.ap-northeast-2.amazonaws.com/0518sample.mp4";
 
 export function Movie({ ...props }) {
+  // console.log("Movie", props);
   const [target, setTarget] = useState(0);
   const [current, setCurrent] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
