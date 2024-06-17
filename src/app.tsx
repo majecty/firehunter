@@ -13,6 +13,7 @@ import { WebRTCAutoSessionExchangeSample } from './pages/thirdtry/AutoWebRTCSAmp
 import { FourthHome } from './pages/fourthtry/FourthHome'
 import { HLSTest } from './pages/fourthtry/HLSTest'
 import { HLSTest360 } from './pages/fourthtry/HLSTest360'
+import { HLSTestWithLocal } from './pages/fourthtry/HLSTestWithLocal'
 
 export function App() {
   return (
@@ -35,6 +36,7 @@ export function App() {
       <FourthHome path="/fourth"/>
       <HLSTest path="/fourth/hlstest"/>
       <HLSTest360 path="/fourth/hlstest360"/>
+      <HLSTestWithLocal path="/fourth/hlstestwithlocal"/>
     </Router>
     </>
   )

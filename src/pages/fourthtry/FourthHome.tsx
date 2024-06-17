@@ -11,5 +11,8 @@ export function FourthHome({ ...props }) {
     <button onClick={() => {
       route('/fourth/hlstest360')
     }}>hls 360 테스트</button>
+    <button onClick={() => {
+      route('/fourth/hlstestwithlocal')
+    }}>hls local 테스트</button>
   </div>
 }
