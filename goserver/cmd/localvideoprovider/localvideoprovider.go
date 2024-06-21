@@ -1,10 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"os"
+
+	g "github.com/AllenDang/giu"
 )
 
 func main() {
@@ -29,12 +32,32 @@ func main() {
 		}
 	}
 
-	fs := http.FileServer(http.Dir("./resource"))
-	http.Handle("/", fs)
+	go func() {
+		fs := http.FileServer(http.Dir("./resource"))
+		http.Handle("/", fs)
 
-	log.Println("Server started on port 8080")
-	err = http.ListenAndServe(":8080", nil)
-	if err != nil {
-		log.Fatal(err)
+		log.Println("Server started on port 8080")
+		err = http.ListenAndServe(":8080", nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+	giuMain()
+}
+
+func giuMain() {
+	wnd := g.NewMasterWindow("Hello world", 400, 200, g.MasterWindowFlagsNotResizable)
+	wnd.Run(loop)
+}
+
+func loop() {
+	var layout g.Layout
+
+	layout = g.Layout{
+		g.Label("Hello world from giu"),
+		g.Button("DONE").OnClick(func() {
+			fmt.Println("Im sooooooo cute!!")
+		}),
 	}
+	g.SingleWindow().Layout(layout)
 }
