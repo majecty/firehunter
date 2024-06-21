@@ -14,6 +14,7 @@ import { FourthHome } from './pages/fourthtry/FourthHome'
 import { HLSTest } from './pages/fourthtry/HLSTest'
 import { HLSTest360 } from './pages/fourthtry/HLSTest360'
 import { HLSTestWithLocal } from './pages/fourthtry/HLSTestWithLocal'
+import { FifthHome } from './pages/fifthtry/FifthHome'
 
 export function App() {
   return (
@@ -37,6 +38,8 @@ export function App() {
       <HLSTest path="/fourth/hlstest"/>
       <HLSTest360 path="/fourth/hlstest360"/>
       <HLSTestWithLocal path="/fourth/hlstestwithlocal"/>
+
+      <FifthHome path="/fifth"/>
     </Router>
     </>
   )
