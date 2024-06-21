@@ -1,13 +1,22 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"image"
 	"log"
 	"net"
 	"net/http"
 	"os"
 
 	g "github.com/AllenDang/giu"
+	"github.com/skip2/go-qrcode"
+)
+
+var (
+	currentIp        string = ""
+	websiteQR        []byte
+	websiteQRTexture *g.Texture
 )
 
 func main() {
@@ -28,6 +37,7 @@ func main() {
 	for _, addr := range addrs {
 		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() && ipnet.IP.To4() != nil {
 			log.Println("Private IP address:", ipnet.IP.String())
+			currentIp = ipnet.IP.String()
 			break
 		}
 	}
@@ -46,7 +56,18 @@ func main() {
 }
 
 func giuMain() {
-	wnd := g.NewMasterWindow("Hello world", 400, 200, g.MasterWindowFlagsNotResizable)
+	wnd := g.NewMasterWindow("Hello world", 600, 600, g.MasterWindowFlagsNotResizable)
+	websiteQR, err := qrcode.Encode("http://"+currentIp+":8080", qrcode.Medium, 512)
+	if err != nil {
+		log.Fatal(err)
+	}
+	img, _, err := image.Decode(bytes.NewReader(websiteQR))
+	if err != nil {
+		log.Fatal(err)
+	}
+	g.EnqueueNewTextureFromRgba(img, func(t *g.Texture) {
+		websiteQRTexture = t
+	})
 	wnd.Run(loop)
 }
 
@@ -55,6 +76,9 @@ func loop() {
 
 	layout = g.Layout{
 		g.Label("Hello world from giu"),
+		g.Label("Server started on port 8080"),
+		g.Label("Local IP address: " + currentIp),
+		g.Image(websiteQRTexture).Size(256, 256),
 		g.Button("DONE").OnClick(func() {
 			fmt.Println("Im sooooooo cute!!")
 		}),
