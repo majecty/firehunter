@@ -20,6 +20,10 @@ var (
 )
 
 func main() {
+	err := checkDirectory()
+	if err != nil {
+		log.Fatal(err)
+	}
 	if _, err := os.Stat("./goserver-root"); os.IsNotExist(err) {
 		currentDir, err := os.Getwd()
 		if err != nil {
@@ -86,4 +90,16 @@ func loop() {
 		}),
 	}
 	g.SingleWindow().Layout(layout)
+}
+
+func checkDirectory() error {
+	if _, err := os.Stat("./goserver-root"); os.IsNotExist(err) {
+		currentDir, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("error getting current directory while finding goserver-root: %w", err)
+		}
+		log.Println("Current directory:", currentDir)
+		return fmt.Errorf("goserver-root file not found in the current directory %w", err)
+	}
+	return nil
 }
