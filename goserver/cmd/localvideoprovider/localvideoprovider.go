@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 
 	g "github.com/AllenDang/giu"
 	"github.com/skip2/go-qrcode"
@@ -52,9 +53,23 @@ func main() {
 
 	go func() {
 		fvideos := http.FileServer(http.Dir("./resource/"))
-		http.Handle("/videos/", http.StripPrefix("/videos/", fvideos))
-		fs := http.FileServer(http.Dir("./resource/root/dist"))
-		http.Handle("/", fs)
+		http.Handle("/videos/", fvideos)
+		fs := http.FileServer(http.Dir("./resource/root"))
+		// http.Handle("/dist/", http.StripPrefix("/dist/", fs))
+		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			fmt.Println(r.URL.Path)
+			if strings.HasPrefix(r.URL.Path, "/sixth") {
+				http.ServeFile(w, r, "./resource/root/index.html")
+				return
+			}
+			if r.URL.Path != "/" {
+				// fs.ServeHTTP(w, r)
+				// http.StripPrefix("/")
+				fs.ServeHTTP(w, r)
+			} else {
+				http.ServeFile(w, r, "./resource/root/index.html")
+			}
+		})
 
 		log.Println("Server started on port 8080")
 		err = http.ListenAndServe(":8080", nil)
@@ -134,7 +149,8 @@ func checkResourceDirectory() error {
 }
 
 func checkMoviesDirectory() error {
-	if _, err := os.Stat("./resource/movies"); os.IsNotExist(err) {
+	if _, err := os.Stat("./resource/"); os.IsNotExist(err) {
+		return fmt.Errorf("movies directory not found: %w", err)
 	}
 
 	// TODO: Check the real movie files
