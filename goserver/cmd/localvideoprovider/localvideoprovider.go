@@ -112,9 +112,20 @@ func checkCurrentDirectory() error {
 		log.Println("Current directory:", currentDir)
 		return fmt.Errorf("goserver-root file not found in the current directory %w", err)
 	}
+
 	return nil
 }
 
 func checkResourceDirectory() error {
+	if _, err := os.Stat("./resource"); os.IsNotExist(err) {
+		return fmt.Errorf("resource directory not found: %w", err)
+	}
+	if _, err := os.Stat("./resource/root"); os.IsNotExist(err) {
+		return fmt.Errorf("root directory not found: %w", err)
+	}
+	if _, err := os.Stat("./resource/root/index.html"); os.IsNotExist(err) {
+		return fmt.Errorf("index.html not found: %w", err)
+	}
+
 	return nil
 }
