@@ -3,6 +3,21 @@ import { useEffect, useRef, useState } from "preact/hooks";
 // @ts-ignore
 import { Entity, Scene } from "aframe-react";
 
+const pc = new RTCPeerConnection({
+  iceServers: [
+    {
+      urls: "turn:turn.i.juhyung.dev",
+      username: "juhyung",
+      credential: "juhyung",
+    }
+  //   {
+  //   urls: 'stun:stun.l.google.com:19302'
+  // }, {
+  //   urls: "stun:stun2.1.google.com:19302",
+  // }
+]
+});
+
 export function SixthMovie({ ...props }) {
   console.log("SixthMovie", props);
 
@@ -46,49 +61,89 @@ export function SixthMovie({ ...props }) {
 
   const videoUrl = getMovieFileUrl(props.id as "1" | "2" | "3" | "4" | "5", decodedUrl);
 
-  const [target, setTarget] = useState(0);
-  const [current, setCurrent] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [enableSync, setEnableSync] = useState(true);
+  const [logs, setLogs] = useState<string[]>([]);
+  const [localSessionDescription, setLocalSessionDescription] = useState<string>('');
+  const [remoteSessionDescription, setRemoteSessionDescription] = useState<string>('');
   const [fov, setFov] = useState(80);
 
-
   useEffect(() => {
-    const interval = setInterval(() => {
-      setTarget(new Date().getSeconds());
-      if (videoRef.current === null) {
-        console.log("videoRef is null");
+    console.log("ThirdHome useEffect");
+    pc.ontrack = (event) => {
+      console.log('ontrack', event);
+      const el = document.createElement(event.track.kind) as any
+      el.srcObject = event.streams[0];
+      el.autoplay = true;
+      el.controls = true;
+
+      if (videoRef.current == null) {
+        console.error('videoRootRef.current is null while ontrack');
         return;
       }
-      setCurrent(Math.floor(videoRef.current.currentTime));
-    }, 100);
-
-    return () => {
-      clearInterval(interval);
+      if (event.streams.length !== 1) {
+        console.error('event.streams.length !== 1 while ontrack ' + event.streams.length);
+        console.error(event.streams);
+        return;
+      }
+      videoRef.current.srcObject = event.streams[0];
     };
-  }, []);
 
-  useEffect(() => {
-    if (videoRef.current === null) {
-      console.log("videoRef is null");
-      return;
-    }
-    if (!enableSync) {
-      return;
-    }
-    const currentMillis = videoRef.current.currentTime * 1000;
-    const now = new Date();
-    const currentTimeMillis =  now.getSeconds() * 1000 + now.getMilliseconds();
+    pc.oniceconnectionstatechange = (event) => {
+      console.log('oniceconnectionstatechange', ".");
+      // do nothing
+      // console.log('oniceconnectionstatechange', event);
+      // setLogs((prev) => [...prev, `oniceconnectionstatechange: ${pc.iceConnectionState}`]);
+    };
 
-    let diff = Math.abs(currentMillis - currentTimeMillis);
-    if (diff > 30 * 1000) {
-      diff = 60 * 1000 - diff;
-    }
-    if (diff > 500) {
-      videoRef.current.currentTime = now.getSeconds() + now.getMilliseconds() / 1000;
-      console.log("current ", currentMillis, "now ", now.getSeconds() * 1000 + now.getMilliseconds(), "diff", diff);
-    }
-  }, [target]);
+    pc.onicecandidate = (event) => {
+      console.log('onicecandidate', ".");
+      if (event.candidate == null) {
+        console.log("localDescription", (JSON.stringify(pc.localDescription)?.substring(0, 50) ?? 'localDescription is null') + (JSON.stringify(pc.localDescription)?.length > 50 ? '...' : ''));
+        setLocalSessionDescription(
+          btoa(JSON.stringify(pc.localDescription))
+        )
+
+        fetch(`https://firehunter.i.juhyung.dev/sessiondescription`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            sessionDescription: btoa(JSON.stringify(pc.localDescription))
+          })
+        }).then((response) => {
+          return response.json()
+        }).then((data) => {
+          if (typeof data.answer != 'string') {
+            console.error('data.answer is not a string');
+            console.error(data);
+            return;
+          }
+
+          if (data.answer === '') {
+            console.error('data.answer is empty');
+            console.error(data);
+            return;
+          }
+
+          console.log("setRemoteSessionDescription");
+          setRemoteSessionDescription(data.answer);
+
+          pc.setRemoteDescription(JSON.parse(atob(data.answer)));
+        });
+      } else {
+        setLocalSessionDescription('.' + Math.random().toPrecision(2))
+        console.log('onicecandidate', event.candidate);
+      }
+    };
+
+    pc.addTransceiver('video', {
+      direction: 'sendrecv'
+    });
+
+    pc.createOffer().then(d => pc.setLocalDescription((d))).catch(e => console.error(e));
+
+  }, [])
 
 
   return <div>
@@ -98,7 +153,6 @@ export function SixthMovie({ ...props }) {
     </p>
     <button onClick={() => route('/')}>Home으로 돌아가기</button>
     <p>
-      영상 싱크: {target}
       FOV: {fov}
     </p>
     <pre>{JSON.stringify(props, null, 2)}</pre>
@@ -114,11 +168,8 @@ export function SixthMovie({ ...props }) {
       <a-camera fov={fov.toString()}>  </a-camera>
     </Scene>
 
-    <p style={{ position: "absolute", top: "70%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999", color: "white", backgroundColor: "black" }}>{props.id}번째 타블렛 싱크 목표: {target} 현재: {current}</p>
-    <button style={{ position: "absolute", top: "90%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999"}} onClick={() => setEnableSync(!enableSync)}>싱크 {enableSync ? "끄기" : "켜기"}</button>
     <p style={{ position: "absolute", top: "95%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999", color: "white", backgroundColor: "black" }}>FOV</p>
     <input type="range" min="30" max="120" value={fov} onChange={(e) => setFov(parseInt((e.target! as any).value))} style={{ position: "absolute", top: "95%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999"}} />
-    {videoRef.current !== null && videoRef.current.paused && <button style={{ position: "absolute", top: "95%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999"}} onClick={() => videoRef.current!.play()}>재생</button>}
   </div>
 }
 
