@@ -104,6 +104,10 @@ func checkDirectory() error {
 	if err := checkResourceDirectory(); err != nil {
 		return fmt.Errorf("error checking resource directory: %w", err)
 	}
+
+	if err := checkMoviesDirectory(); err != nil {
+		return fmt.Errorf("error checking movies directory: %w", err)
+	}
 	return nil
 }
 
@@ -125,6 +129,15 @@ func checkResourceDirectory() error {
 	if _, err := os.Stat("./resource/root/index.html"); os.IsNotExist(err) {
 		return fmt.Errorf("index.html not found: %w", err)
 	}
+
+	return nil
+}
+
+func checkMoviesDirectory() error {
+	if _, err := os.Stat("./resource/movies"); os.IsNotExist(err) {
+	}
+
+	// TODO: Check the real movie files
 
 	return nil
 }
