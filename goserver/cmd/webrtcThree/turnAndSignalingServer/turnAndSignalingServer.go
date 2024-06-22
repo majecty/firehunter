@@ -18,6 +18,10 @@ import (
 )
 
 func main() {
+	go runTurnServer()
+}
+
+func runTurnServer() {
 	publicIP := "3.34.13.104"
 	port := flag.Int("port", 3478, "Listening port.")
 	realm := flag.String("realm", "turn.i.juhyung.dev", "Realm (defaults to \"pion.ly\")")
@@ -57,4 +61,3 @@ func main() {
 	if err = s.Close(); err != nil {
 		log.Panic(err)
 	}
-}
