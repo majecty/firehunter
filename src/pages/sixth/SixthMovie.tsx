@@ -13,7 +13,38 @@ export function SixthMovie({ ...props }) {
       <p>현재 movie 뒤의 숫자: {props.id}</p>
       </div>
   }
-  const videoUrl = getMovieFileUrl(props.id as "1" | "2" | "3" | "4" | "5");
+
+  const videoBaseUrl = props.videoBaseUrl;
+  if (!videoBaseUrl) {
+    return <div>
+      <h1>여섯번째 시도</h1>
+      <p>노트북에서 보이는 QR코드로 접속해주세요.</p>
+      <p>{videoBaseUrl}</p>
+    </div>
+  }
+
+  let decodedUrl;
+  try {
+   decodedUrl = atob(videoBaseUrl.replace(/_/g, '/').replace(/-/g, '+'))
+  } catch (err) {
+    if (err instanceof Error) {
+      decodedUrl = "올바르지 않은 주소입니다. " + err.message;
+    } else {
+      decodedUrl = "올바르지 않은 주소입니다. " + err;
+    }
+
+    return <div>
+      <h1>여섯번째 시도</h1>
+      <p>
+        공유기 안에서 영상을 가져와서 재생합니다.
+      </p>
+      <p>
+        노트북 주소가 잘못되었습니다: {decodedUrl}
+      </p>
+    </div>
+  }
+
+  const videoUrl = getMovieFileUrl(props.id as "1" | "2" | "3" | "4" | "5", decodedUrl);
 
   const [target, setTarget] = useState(0);
   const [current, setCurrent] = useState(0);
@@ -91,6 +122,6 @@ export function SixthMovie({ ...props }) {
   </div>
 }
 
-function getMovieFileUrl(id: "1" | "2" | "3" | "4" | "5") {
-  return `/videos/video-${id}.mp4`;
+function getMovieFileUrl(id: "1" | "2" | "3" | "4" | "5", videoBaseUrl: string) {
+  return `${videoBaseUrl}/videos/video-${id}.mp4`;
 }

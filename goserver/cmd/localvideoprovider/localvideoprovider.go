@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"image"
 	"log"
@@ -82,7 +83,11 @@ func main() {
 
 func giuMain() {
 	wnd := g.NewMasterWindow("Hello world", 600, 600, g.MasterWindowFlagsNotResizable)
-	websiteQR, err := qrcode.Encode("http://"+currentIp+":8080", qrcode.Medium, 512)
+	videoBaseUrl := "http://" + currentIp + ":8080"
+	base64VideoBaseUrl := base64.URLEncoding.EncodeToString([]byte(videoBaseUrl))
+	websiteURL := "https://d369y4pz8qgsre.cloudfront.net/sixth?videoBaseUrl=" + base64VideoBaseUrl
+	fmt.Println("Website URL:", websiteURL)
+	websiteQR, err := qrcode.Encode(websiteURL, qrcode.Medium, 512)
 	if err != nil {
 		log.Fatal(err)
 	}
