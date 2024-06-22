@@ -17,6 +17,7 @@ import { HLSTestWithLocal } from './pages/fourthtry/HLSTestWithLocal'
 import { FifthHome } from './pages/fifthtry/FifthHome'
 import { FifthMovie } from './pages/fifthtry/FifthMovie'
 import { SixthHome } from './pages/sixth/SixthHome'
+import { SixthMovie } from './pages/sixth/SixthMovie'
 
 export function App() {
   return (
@@ -49,6 +50,7 @@ export function App() {
       <FifthMovie path="/fifth/movie/200MB" size="200MB"/>
 
       <SixthHome path="/sixth"/>
+      <SixthMovie path="/sixth/movie/:id" />
     </Router>
     </>
   )
