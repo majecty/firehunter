@@ -43,7 +43,9 @@ func main() {
 	}
 
 	go func() {
-		fs := http.FileServer(http.Dir("./resource"))
+		fvideos := http.FileServer(http.Dir("./resource/"))
+		http.Handle("/videos/", http.StripPrefix("/videos/", fvideos))
+		fs := http.FileServer(http.Dir("./resource/root/dist"))
 		http.Handle("/", fs)
 
 		log.Println("Server started on port 8080")
