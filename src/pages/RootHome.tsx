@@ -20,9 +20,11 @@ export function RootHome({ ...props }) {
     <button onClick={() => route('/fourth')}>
       네번째 시도: hls 스트리밍을 사용
     </button>
-
     <button onClick={() => route('/fifth')}>
       다섯번째 시도: 크키별 360 영상을 짧게 잘라서 TV에서 재생
+    </button>
+    <button onClick={() => route('sixth')}>
+      여섯번째 시도: 공유기 안에서 영상을 가져와서 재생
     </button>
     </div>;
 }
