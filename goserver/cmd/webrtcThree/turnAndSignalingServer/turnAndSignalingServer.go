@@ -51,6 +51,10 @@ type SocketIOSDRequest struct {
 }
 
 func main() {
+	run()
+}
+
+func run() {
 	fmt.Println("run turn goroutine")
 	go runTurnServer()
 	fmt.Println("register SocketIO")
