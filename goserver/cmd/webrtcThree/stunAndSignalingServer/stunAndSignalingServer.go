@@ -7,7 +7,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"math/rand"
 	"net"
@@ -117,7 +116,7 @@ func run(ctx context.Context) error {
 	defer cancel()
 
 	fmt.Println("turn server start goroutine")
-	go runTurnServer(ctx)
+	go runStunServer(ctx)
 	fmt.Println("register WebSocket")
 	registerWebSocketHandler(http.DefaultServeMux)
 	fmt.Println("register http server")
@@ -268,32 +267,19 @@ func registerHTTPHandler(serverMux *http.ServeMux) {
 	})
 }
 
-func runTurnServer(ctx context.Context) {
-	publicIP := "3.34.13.104"
-	port := flag.Int("port", 3478, "Listening port.")
-	realm := flag.String("realm", "turn.i.juhyung.dev", "Realm (defaults to \"pion.ly\")")
-	flag.Parse()
+func runStunServer(ctx context.Context) {
+	port := 3478
 
-	udpListener, err := net.ListenPacket("udp4", "0.0.0.0:"+strconv.Itoa(*port))
+	udpListener, err := net.ListenPacket("udp4", "0.0.0.0:"+strconv.Itoa(port))
 	if err != nil {
 		fmt.Printf("failed to create TURN server listener: %v\n", err)
 		return
 	}
 
 	s, err := turn.NewServer(turn.ServerConfig{
-		Realm: *realm,
-		AuthHandler: func(username string, realm string, srcAddr net.Addr) ([]byte, bool) { // nolint: revive
-			fmt.Println("username: ", username)
-			return []byte(username), true
-		},
-
 		PacketConnConfigs: []turn.PacketConnConfig{
 			{
 				PacketConn: udpListener,
-				RelayAddressGenerator: &turn.RelayAddressGeneratorStatic{
-					RelayAddress: net.ParseIP(publicIP), // Claim that we are listening on IP passed by user (This should be your Public IP)
-					Address:      "0.0.0.0",             // But actually be listening on every interface
-				},
 			},
 		},
 	})

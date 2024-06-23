@@ -6,9 +6,8 @@ import { Entity, Scene } from "aframe-react";
 const pc = new RTCPeerConnection({
   iceServers: [
     {
-      urls: "turn:turn.i.juhyung.dev:3478",
-      username: "juhyung",
-      credential: "juhyung",
+      // urls: "stun:stun.i.juhyung.dev:3478",
+      urls: "stun:localhost:3478",
     }
   //   {
   //   urls: 'stun:stun.l.google.com:19302'
