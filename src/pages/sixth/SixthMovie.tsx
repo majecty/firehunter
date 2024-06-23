@@ -6,8 +6,8 @@ import { Entity, Scene } from "aframe-react";
 const pc = new RTCPeerConnection({
   iceServers: [
     {
-      // urls: "stun:stun.i.juhyung.dev:3478",
-      urls: "stun:localhost:3478",
+      urls: "stun:stun.i.juhyung.dev:3478",
+      // urls: "stun:localhost:3478",
     }
   //   {
   //   urls: 'stun:stun.l.google.com:19302'
@@ -29,9 +29,9 @@ export function SixthMovie({ ...props }) {
   }
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [logs, setLogs] = useState<string[]>([]);
-  const [localSessionDescription, setLocalSessionDescription] = useState<string>('');
-  const [remoteSessionDescription, setRemoteSessionDescription] = useState<string>('');
+  // const [logs, setLogs] = useState<string[]>([]);
+  // const [localSessionDescription, setLocalSessionDescription] = useState<string>('');
+  // const [remoteSessionDescription, setRemoteSessionDescription] = useState<string>('');
   const [fov, setFov] = useState(80);
 
   useEffect(() => {
@@ -57,6 +57,7 @@ export function SixthMovie({ ...props }) {
 
     pc.oniceconnectionstatechange = (event) => {
       console.log('oniceconnectionstatechange', ".");
+      console.log(event);
       // do nothing
       // console.log('oniceconnectionstatechange', event);
       // setLogs((prev) => [...prev, `oniceconnectionstatechange: ${pc.iceConnectionState}`]);
@@ -64,42 +65,37 @@ export function SixthMovie({ ...props }) {
 
     pc.onicecandidate = (event) => {
       console.log('onicecandidate', ".");
+      console.log(event);
       if (event.candidate == null) {
         console.log("localDescription", (JSON.stringify(pc.localDescription)?.substring(0, 50) ?? 'localDescription is null') + (JSON.stringify(pc.localDescription)?.length > 50 ? '...' : ''));
-        setLocalSessionDescription(
-          btoa(JSON.stringify(pc.localDescription))
-        )
+        // setLocalSessionDescription(
+        //   btoa(JSON.stringify(pc.localDescription))
+        // )
 
-        fetch(`https://localhost:8123/client/offer`, {
+        fetch(`http://localhost:8124/client/offer`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            offer: JSON.stringify(pc.localDescription)
+            offer: pc.localDescription
           })
         }).then((response) => {
           return response.json()
         }).then((data) => {
-          if (typeof data.answer != 'string') {
-            console.error('data.answer is not a string');
-            console.error(data);
-            return;
-          }
-
-          if (data.answer === '') {
-            console.error('data.answer is empty');
+          if (typeof data.answer != 'object') {
+            console.error('data.answer is not a object');
             console.error(data);
             return;
           }
 
           console.log("setRemoteSessionDescription");
-          setRemoteSessionDescription(data.answer);
+          // setRemoteSessionDescription(JSON.stringify(data.answer));
 
-          pc.setRemoteDescription(JSON.parse(atob(data.answer)));
+          pc.setRemoteDescription(data.answer);
         });
       } else {
-        setLocalSessionDescription('.' + Math.random().toPrecision(2))
+        // setLocalSessionDescription('.' + Math.random().toPrecision(2))
         console.log('onicecandidate', event.candidate);
       }
     };
@@ -124,7 +120,12 @@ export function SixthMovie({ ...props }) {
     </p>
     <pre>{JSON.stringify(props, null, 2)}</pre>
 
-    <Scene>
+        <video id="sample-video" autoplay loop={true}
+           crossorigin="anonymous"
+          ref={videoRef}
+        />
+
+    {/* <Scene>
       <a-assets>
         <video id="sample-video" autoplay loop={true}
            crossorigin="anonymous"
@@ -133,7 +134,7 @@ export function SixthMovie({ ...props }) {
       </a-assets>
       <a-videosphere src="#sample-video"></a-videosphere>
       <a-camera fov={fov.toString()}>  </a-camera>
-    </Scene>
+    </Scene> */}
 
     <p style={{ position: "absolute", top: "95%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999", color: "white", backgroundColor: "black" }}>FOV</p>
     <input type="range" min="30" max="120" value={fov} onChange={(e) => setFov(parseInt((e.target! as any).value))} style={{ position: "absolute", top: "95%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999"}} />

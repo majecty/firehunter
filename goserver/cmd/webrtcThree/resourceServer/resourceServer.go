@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/url"
 	"os"
 	"os/signal"
@@ -103,6 +102,7 @@ func webrtcMain(ctx context.Context) error {
 				fmt.Printf("failed to read message: %v\n", err)
 				continue
 			}
+			fmt.Println("readMessage success")
 
 			if webSocketMessage.isHeartBeat() {
 				continue
@@ -176,12 +176,13 @@ func registerWebRTCEvents(ctx context.Context, offer webrtc.SessionDescription) 
 	}
 	gatherComplete := webrtc.GatheringCompletePromise(peerConnection)
 
+	fmt.Println("waiting for ICE gathering to complete")
+	<-gatherComplete
+	fmt.Println("ICE gathering complete")
 	answer, err = createAnswer(peerConnection)
 	if err != nil {
 		return answer, fmt.Errorf("failed to create answer: %w", err)
 	}
-
-	<-gatherComplete
 
 	return answer, nil
 }
@@ -189,11 +190,9 @@ func registerWebRTCEvents(ctx context.Context, offer webrtc.SessionDescription) 
 func createPeerConnection() (*webrtc.PeerConnection, error) {
 	return webrtc.NewPeerConnection(webrtc.Configuration{
 		ICEServers: []webrtc.ICEServer{
-			webrtc.ICEServer{
-				URLs:       []string{"turn:turn.i.juhyung.dev:3478"},
-				Username:   "juhyung",
-				Credential: "juhyung",
-			},
+			// webrtc.ICEServer{
+			// 	URLs: []string{"stun:stun.i.juhyung.dev:3478"},
+			// },
 		},
 	})
 }
@@ -214,7 +213,7 @@ func createVideoTrack(peerConnection *webrtc.PeerConnection) (*webrtc.TrackLocal
 		rtcpBuf := make([]byte, 1500)
 		for {
 			if _, _, rtcpErr := rtpSender.Read(rtcpBuf); rtcpErr != nil {
-				fmt.Printf("Failed to read RTCP packet: %v", rtcpErr)
+				// fmt.Printf("Failed to read RTCP packet: %v\n", rtcpErr)
 				return
 			}
 		}
@@ -236,8 +235,10 @@ func streamingVideo(iceConnectedCtx context.Context, videoTrack *webrtc.TrackLoc
 		return
 	}
 
+	fmt.Println("streamingVideo wait for connection")
 	// connection이 되길 기다림
 	<-iceConnectedCtx.Done()
+	fmt.Println("streamingVideo start")
 
 	ticker := time.NewTicker(h264FrameDuration)
 	for ; true; <-ticker.C {
@@ -316,7 +317,8 @@ func readMessage(c *websocket.Conn) (*WebSocketMessage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read message: %w", err)
 	}
-	log.Printf("recv: %s", message)
+	fmt.Println("websocket readMessage success")
+	// log.Printf("recv: %s", message)
 	var webSocketMessage WebSocketMessage
 	if err := json.Unmarshal(message, &webSocketMessage); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal message: %w\n", err)
