@@ -47,7 +47,7 @@ type toSocketIOResponse struct {
 
 type SocketIOSDRequest struct {
 	SessionDescription string `json:"sessionDescription"`
-	requestId          int    `json:"requestId"`
+	requestId          int32  `json:"requestId"`
 }
 
 func main() {
@@ -126,7 +126,7 @@ func runSocketIOServer(serverMux *http.ServeMux) {
 		go func() {
 			for {
 				fromClient := <-toSocketIO
-				requestId := rand.Int()
+				requestId := rand.Int31()
 
 				if err := client.Emit("clientSessionDescription", SocketIOSDRequest{
 					SessionDescription: fromClient.clientSessionDescription,
