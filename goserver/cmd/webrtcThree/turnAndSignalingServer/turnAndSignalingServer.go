@@ -9,11 +9,13 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math/rand"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
+	"sync"
 	"syscall"
 
 	"github.com/pion/turn/v3"
@@ -43,6 +45,11 @@ type toSocketIOResponse struct {
 	error                    error
 }
 
+type SocketIOSDRequest struct {
+	SessionDescription string `json:"sessionDescription"`
+	requestId          int    `json:"requestId"`
+}
+
 func main() {
 	go runTurnServer()
 
@@ -53,6 +60,31 @@ func main() {
 	fmt.Println("Server started on port 8478.")
 }
 
+type WaitingResponse struct {
+	waitings map[int32]chan toSocketIOResponse
+	mu       sync.Mutex
+}
+
+var waitngResponse = WaitingResponse{
+	waitings: make(map[int32]chan toSocketIOResponse),
+}
+
+var addWaiter = func(requestId int32, ch chan toSocketIOResponse) {
+	waitngResponse.mu.Lock()
+	defer waitngResponse.mu.Unlock()
+	waitngResponse.waitings[requestId] = ch
+}
+
+var consumeWaiter = func(requestId int32) (error, chan toSocketIOResponse) {
+	waitngResponse.mu.Lock()
+	defer waitngResponse.mu.Unlock()
+	ch, ok := waitngResponse.waitings[requestId]
+	if !ok {
+		return fmt.Errorf("No waiter found for requestId: %d", requestId), nil
+	}
+	return nil, ch
+}
+
 func runSocketIOServer(serverMux *http.ServeMux) {
 	io := socket.NewServer(nil, nil)
 	serverMux.Handle("/socket.io/", io.ServeHandler(nil))
@@ -61,7 +93,52 @@ func runSocketIOServer(serverMux *http.ServeMux) {
 		client := clients[0].(*socket.Socket)
 		fmt.Println("connected:", client.Id())
 		client.Emit("debugMessage", "connected using client.Emit")
+
+		client.On("serverSessionDescription", func(datas ...any) {
+			if len(datas) != 2 {
+				fmt.Printf("serverSessionDescription: invalid number of arguments: %d\n", len(datas))
+				return
+			}
+			requestId, requestIdConversion := datas[0].(int32)
+			if !requestIdConversion {
+				fmt.Printf("serverSessionDescription: requestId is not int %v\n", datas[0])
+				return
+			}
+			data, dataConversion := datas[1].(string)
+			if !dataConversion {
+				fmt.Printf("serverSessionDescription: data is not string %v\n", datas[1])
+				return
+			}
+			fmt.Println("serverSessionDescription: ", data)
+
+			err, responseSocket := consumeWaiter(requestId)
+			if err != nil {
+				fmt.Println("Error consuming waiter: ", err)
+				return
+			}
+
+			responseSocket <- toSocketIOResponse{
+				serverSessionDescription: data,
+				error:                    nil,
+			}
+		})
+
+		go func() {
+			for {
+				fromClient := <-toSocketIO
+				requestId := rand.Int()
+
+				if err := client.Emit("clientSessionDescription", SocketIOSDRequest{
+					SessionDescription: fromClient.clientSessionDescription,
+					requestId:          requestId,
+				}); err != nil {
+					fmt.Println("Error emitting clientSessionDescription: ", err)
+				}
+				addWaiter(requestId, fromClient.response)
+			}
+		}()
 	})
+
 	fmt.Println("Hello, worlsd.")
 }
 
