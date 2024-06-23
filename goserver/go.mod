@@ -4,6 +4,7 @@ go 1.22.4
 
 require (
 	github.com/AllenDang/giu v0.7.0
+	github.com/googollee/go-socket.io v1.7.0
 	github.com/pion/logging v0.2.2
 	github.com/pion/turn/v3 v3.0.3
 	github.com/pion/webrtc/v4 v4.0.0-beta.19
@@ -19,6 +20,8 @@ require (
 	github.com/faiface/mainthread v0.0.0-20171120011319-8b78f0a41ae3 // indirect
 	github.com/go-gl/gl v0.0.0-20211210172815-726fda9656d6 // indirect
 	github.com/go-gl/glfw/v3.3/glfw v0.0.0-20221017161538-93cebf72946b // indirect
+	github.com/gofrs/uuid v4.0.0+incompatible // indirect
+	github.com/gomodule/redigo v1.8.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gookit/color v1.5.4 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect

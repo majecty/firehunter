@@ -6,11 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
+	"net/url"
 	"os"
 	"os/signal"
-	"strings"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/pion/webrtc/v4"
 	"github.com/pion/webrtc/v4/pkg/media"
 	"github.com/pion/webrtc/v4/pkg/media/h264reader"
@@ -18,6 +20,7 @@ import (
 
 var (
 	h264FrameDuration = time.Millisecond * 33
+	signallingServer  = "localhost:8124"
 )
 
 func main() {
@@ -27,6 +30,54 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
+}
+
+type WebSocketMessage struct {
+	Type string          `json:"type"`
+	Data json.RawMessage `json:"data"`
+}
+
+type OfferData struct {
+	Offer     webrtc.SessionDescription `json:"offer"`
+	RequestID int32                     `json:"requestId"`
+}
+
+type AnswerData struct {
+	Answer    webrtc.SessionDescription `json:"answer"`
+	RequestID int32                     `json:"requestId"`
+}
+
+func (wsm *WebSocketMessage) isHeartBeat() bool {
+	if wsm.Type == "heartbeat" {
+		return true
+	}
+	return false
+}
+
+func (wsm *WebSocketMessage) parseOffer() (offer OfferData, err error) {
+	if wsm.Type != "offer" {
+		return offer, errors.New("invalid type " + wsm.Type)
+	}
+	if err := json.Unmarshal(wsm.Data, &offer); err != nil {
+		return offer, fmt.Errorf("failed to unmarshal offer: %w", err)
+	}
+	return offer, nil
+}
+
+func createAnswerMessage(answer webrtc.SessionDescription, requestID int32) ([]byte, error) {
+	data, err := json.Marshal(AnswerData{
+		Answer:    answer,
+		RequestID: requestID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal answer data: %w", err)
+	}
+
+	return json.Marshal(
+		WebSocketMessage{
+			Type: "answer",
+			Data: json.RawMessage(data),
+		})
 }
 
 func webrtcMain(ctx context.Context) error {
@@ -39,15 +90,53 @@ func webrtcMain(ctx context.Context) error {
 		return fmt.Errorf("failed to check video file: %w", err)
 	}
 
-	offer := ""
-	registerWebRTCEvents(ctx, offer)
+	c, err := connectToWebsocket()
+	if err != nil {
+		return fmt.Errorf("failed to connect to websocket: %w", err)
+	}
+	defer c.Close()
+
+	go func() {
+		for {
+			webSocketMessage, err := readMessage(c)
+			if err != nil {
+				fmt.Printf("failed to read message: %v\n", err)
+				continue
+			}
+
+			if webSocketMessage.isHeartBeat() {
+				continue
+			}
+
+			offer, err := webSocketMessage.parseOffer()
+			if err != nil {
+				fmt.Printf("failed to parse offer: %v\n", err)
+				continue
+			}
+
+			answer, err := registerWebRTCEvents(ctx, offer.Offer)
+			if err != nil {
+				fmt.Printf("failed to register WebRTC events: %v\n", err)
+				continue
+			}
+			answerMessage, err := createAnswerMessage(answer, offer.RequestID)
+			if err != nil {
+				fmt.Printf("failed to create answer message: %v\n", err)
+				continue
+			}
+			if err := c.WriteMessage(websocket.TextMessage, answerMessage); err != nil {
+				fmt.Printf("failed to write message: %v\n", err)
+				continue
+			}
+		}
+	}()
 
 	<-ctx.Done()
 	fmt.Println("webrtcMain end")
 	return nil
 }
 
-var videoFileName = "videoFileName.mp4"
+var videoFileName = "resource/0518sample.mp4"
 
 func checkVideoFile() error {
 	if _, err := os.Stat(videoFileName); err != nil {
@@ -57,7 +146,7 @@ func checkVideoFile() error {
 	return nil
 }
 
-func registerWebRTCEvents(ctx context.Context, offer string) (answer webrtc.SessionDescription, err error) {
+func registerWebRTCEvents(ctx context.Context, offer webrtc.SessionDescription) (answer webrtc.SessionDescription, err error) {
 	fmt.Println("registerWebRTCEvents")
 
 	peerConnection, err := createPeerConnection()
@@ -83,7 +172,7 @@ func registerWebRTCEvents(ctx context.Context, offer string) (answer webrtc.Sess
 	registerConnectionFailedEvent(peerConnection)
 
 	if err := acceptOffer(peerConnection, offer); err != nil {
-		return fmt.Errorf("failed to accept offer: %w", err)
+		return answer, fmt.Errorf("failed to accept offer: %w", err)
 	}
 	gatherComplete := webrtc.GatheringCompletePromise(peerConnection)
 
@@ -193,11 +282,7 @@ func registerConnectionFailedEvent(peerConnection *webrtc.PeerConnection) {
 	})
 }
 
-func acceptOffer(peerConnection *webrtc.PeerConnection, sessionDescription string) error {
-	offer := webrtc.SessionDescription{}
-	if err := json.NewDecoder(strings.NewReader(sessionDescription)).Decode(&offer); err != nil {
-		return fmt.Errorf("failed to unmarshal offer: %w", err)
-	}
+func acceptOffer(peerConnection *webrtc.PeerConnection, offer webrtc.SessionDescription) error {
 	if err := peerConnection.SetRemoteDescription(offer); err != nil {
 		return fmt.Errorf("failed to set remote description: %w", err)
 	}
@@ -213,4 +298,29 @@ func createAnswer(peerConnection *webrtc.PeerConnection) (answer webrtc.SessionD
 		return answer, fmt.Errorf("failed to set local description: %w", err)
 	}
 	return answer, nil
+}
+
+func connectToWebsocket() (*websocket.Conn, error) {
+	u := url.URL{Scheme: "ws", Host: signallingServer, Path: "/ws"}
+	fmt.Printf("connecting to %s\n", u.String())
+
+	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to websocket: %w", err)
+	}
+	return c, nil
+}
+
+func readMessage(c *websocket.Conn) (*WebSocketMessage, error) {
+	_, message, err := c.ReadMessage()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read message: %w", err)
+	}
+	log.Printf("recv: %s", message)
+	var webSocketMessage WebSocketMessage
+	if err := json.Unmarshal(message, &webSocketMessage); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal message: %w\n", err)
+	}
+
+	return &webSocketMessage, nil
 }
