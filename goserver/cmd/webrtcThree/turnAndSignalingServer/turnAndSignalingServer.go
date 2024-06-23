@@ -47,15 +47,19 @@ type toSocketIOResponse struct {
 
 type SocketIOSDRequest struct {
 	SessionDescription string `json:"sessionDescription"`
-	requestId          int32  `json:"requestId"`
+	RequestId          int32  `json:"requestId"`
 }
 
 func main() {
+	fmt.Println("run turn goroutine")
 	go runTurnServer()
-
+	fmt.Println("register SocketIO")
 	runSocketIOServer(http.DefaultServeMux)
+	fmt.Println("register http server")
 	runHTTPServer(http.DefaultServeMux)
+	fmt.Println("add cors")
 	handler := cors.AllowAll().Handler(http.DefaultServeMux)
+	fmt.Println("start server")
 	http.ListenAndServe(":8478", handler)
 	fmt.Println("Server started on port 8478.")
 }
