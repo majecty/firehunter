@@ -28,8 +28,16 @@ type SessionDescriptionRequest struct {
 func main() {
 	go runTurnServer()
 
+	runSocketIOServer(http.DefaultServeMux)
+	runHTTPServer(http.DefaultServeMux)
+	handler := cors.AllowAll().Handler(http.DefaultServeMux)
+	http.ListenAndServe(":8478", handler)
+	fmt.Println("Server started on port 8478.")
+}
+
+func runSocketIOServer(serverMux *http.ServeMux) {
 	io := socket.NewServer(nil, nil)
-	http.Handle("/socket.io/", io.ServeHandler(nil))
+	serverMux.Handle("/socket.io/", io.ServeHandler(nil))
 
 	io.On("connection", func(clients ...any) {
 		client := clients[0].(*socket.Socket)
@@ -37,9 +45,10 @@ func main() {
 		client.Emit("debugMessage", "connected using client.Emit")
 	})
 	fmt.Println("Hello, worlsd.")
-	handler := cors.AllowAll().Handler(http.DefaultServeMux)
+}
 
-	http.HandleFunc("/client/sd", func(w http.ResponseWriter, r *http.Request) {
+func runHTTPServer(serverMux *http.ServeMux) {
+	serverMux.HandleFunc("/client/sd", func(w http.ResponseWriter, r *http.Request) {
 		sessionDescription := SessionDescriptionRequest{}
 		defer r.Body.Close()
 
@@ -50,9 +59,6 @@ func main() {
 
 		fmt.Println("sessionDescription: ", sessionDescription.SessionDescription)
 	})
-
-	http.ListenAndServe(":8478", handler)
-	fmt.Println("Server started on port 8478.")
 }
 
 func runTurnServer() {
