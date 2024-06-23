@@ -17,8 +17,27 @@ const pc = new RTCPeerConnection({
 ]
 });
 
+const ws = new WebSocket('ws://localhost:8124/client/ws');
+let wsOpen = false;
+
+ws.onopen = () => {
+  console.log('ws.onopen');
+  wsOpen = true;
+}
+
+ws.onclose = () => {
+  console.log('ws.onclose');
+  wsOpen = false;
+}
+
 export function SixthMovie({ ...props }) {
   console.log("SixthMovie", props);
+  if (wsOpen === false) {
+    return <div>
+      <h1>여섯번째 시도</h1>
+      <p>서버와 연결 중입니다.</p>
+    </div>
+  }
 
   if (!["1", "2", "3", "4", "5"].includes(props.id)) {
     return <div>
@@ -29,13 +48,36 @@ export function SixthMovie({ ...props }) {
   }
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  // const [logs, setLogs] = useState<string[]>([]);
-  // const [localSessionDescription, setLocalSessionDescription] = useState<string>('');
-  // const [remoteSessionDescription, setRemoteSessionDescription] = useState<string>('');
   const [fov, setFov] = useState(80);
 
   useEffect(() => {
     console.log("ThirdHome useEffect");
+
+    ws.onmessage = e => {
+      let msg = JSON.parse(e.data)
+      if (msg == null) {
+        console.error('websocket msg is null');
+        return;
+      }
+
+      if (msg.type === 'offer') {
+        console.error("offer type should not be received");
+        return;
+      }
+
+      if (msg.type === 'answer') {
+        console.log("setRemoteSessionDescription")
+        pc.setRemoteDescription(msg.data);
+        return;
+      }
+
+      if (msg.type === "candidate") {
+        console.log("addIceCandidate")
+        pc.addIceCandidate(msg.data);
+        return;
+      }
+    };
+
     pc.ontrack = (event) => {
       console.log('ontrack', event);
       const el = document.createElement(event.track.kind) as any
@@ -54,6 +96,16 @@ export function SixthMovie({ ...props }) {
       }
       videoRef.current.srcObject = event.streams[0];
     };
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate != null && event.candidate.candidate != null && event.candidate.candidate.length > 0) {
+        console.log("send candidate")
+        ws.send(JSON.stringify({
+          type: 'candidate',
+          data: event.candidate
+        }));
+      }
+    }
 
     pc.oniceconnectionstatechange = (event) => {
       console.log('oniceconnectionstatechange', ".");
@@ -104,7 +156,15 @@ export function SixthMovie({ ...props }) {
       direction: 'sendrecv'
     });
 
-    pc.createOffer().then(d => pc.setLocalDescription((d))).catch(e => console.error(e));
+    pc.createOffer()
+    .then(d => {
+      pc.setLocalDescription((d))
+      ws.send(JSON.stringify({
+        type: 'offer',
+        data: d
+      }))
+    })
+    .catch(e => console.error(e));
 
   }, [])
 
