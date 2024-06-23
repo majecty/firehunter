@@ -134,7 +134,7 @@ func runSocketIOServer(serverMux *http.ServeMux) {
 
 				if err := client.Emit("clientSessionDescription", SocketIOSDRequest{
 					SessionDescription: fromClient.clientSessionDescription,
-					requestId:          requestId,
+					RequestId:          requestId,
 				}); err != nil {
 					fmt.Println("Error emitting clientSessionDescription: ", err)
 				}
