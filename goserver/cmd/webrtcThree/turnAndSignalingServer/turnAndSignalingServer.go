@@ -60,7 +60,9 @@ func main() {
 	fmt.Println("add cors")
 	handler := cors.AllowAll().Handler(http.DefaultServeMux)
 	fmt.Println("start server")
-	http.ListenAndServe(":8478", handler)
+	if err := http.ListenAndServe(":8478", handler); err != nil {
+		fmt.Printf("Failed to start server: %v\n", err)
+	}
 	fmt.Println("Server started on port 8478.")
 }
 
