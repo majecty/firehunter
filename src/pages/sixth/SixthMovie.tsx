@@ -18,26 +18,31 @@ const pc = new RTCPeerConnection({
 });
 
 const ws = new WebSocket('ws://localhost:8124/client/ws');
-let wsOpen = false;
 
-ws.onopen = () => {
-  console.log('ws.onopen');
-  wsOpen = true;
-}
-
-ws.onclose = () => {
-  console.log('ws.onclose');
-  wsOpen = false;
-}
 
 export function SixthMovie({ ...props }) {
   console.log("SixthMovie", props);
+  const [wsOpen, setWsOpen] = useState(false);
+
+  useEffect(() => {
+    ws.onopen = () => {
+      console.log('ws.onopen');
+      setWsOpen(true);
+    }
+
+    ws.onclose = () => {
+      console.log('ws.onclose');
+      setWsOpen(false);
+    }
+  }, [wsOpen]);
+
   if (wsOpen === false) {
     return <div>
       <h1>여섯번째 시도</h1>
       <p>서버와 연결 중입니다.</p>
     </div>
   }
+
 
   if (!["1", "2", "3", "4", "5"].includes(props.id)) {
     return <div>
@@ -115,43 +120,6 @@ export function SixthMovie({ ...props }) {
       // setLogs((prev) => [...prev, `oniceconnectionstatechange: ${pc.iceConnectionState}`]);
     };
 
-    pc.onicecandidate = (event) => {
-      console.log('onicecandidate', ".");
-      console.log(event);
-      if (event.candidate == null) {
-        console.log("localDescription", (JSON.stringify(pc.localDescription)?.substring(0, 50) ?? 'localDescription is null') + (JSON.stringify(pc.localDescription)?.length > 50 ? '...' : ''));
-        // setLocalSessionDescription(
-        //   btoa(JSON.stringify(pc.localDescription))
-        // )
-
-        fetch(`http://localhost:8124/client/offer`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            offer: pc.localDescription
-          })
-        }).then((response) => {
-          return response.json()
-        }).then((data) => {
-          if (typeof data.answer != 'object') {
-            console.error('data.answer is not a object');
-            console.error(data);
-            return;
-          }
-
-          console.log("setRemoteSessionDescription");
-          // setRemoteSessionDescription(JSON.stringify(data.answer));
-
-          pc.setRemoteDescription(data.answer);
-        });
-      } else {
-        // setLocalSessionDescription('.' + Math.random().toPrecision(2))
-        console.log('onicecandidate', event.candidate);
-      }
-    };
-
     pc.addTransceiver('video', {
       direction: 'sendrecv'
     });
@@ -159,6 +127,7 @@ export function SixthMovie({ ...props }) {
     pc.createOffer()
     .then(d => {
       pc.setLocalDescription((d))
+      console.log("send offer")
       ws.send(JSON.stringify({
         type: 'offer',
         data: d

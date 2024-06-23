@@ -143,7 +143,11 @@ var consumeWaiter = func(requestId int32) (chan ResourceServerResponse, error) {
 	return ch, nil
 }
 
-var websocketUpgrader = websocket.Upgrader{}
+var websocketUpgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+}
 
 func registerReesourceServerWebsocketHandler(serverMux *http.ServeMux) {
 	serverMux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
@@ -156,7 +160,6 @@ func registerReesourceServerWebsocketHandler(serverMux *http.ServeMux) {
 		defer c.Close()
 
 		go func() {
-			fmt.Println("wait for offer in websocket loop")
 			for {
 				fromClient := <-toResourceServer
 				fmt.Println("send message to resource server")
@@ -166,6 +169,7 @@ func registerReesourceServerWebsocketHandler(serverMux *http.ServeMux) {
 					fmt.Println("Error marshaling clientSessionDescription: ", err)
 					continue
 				}
+				fmt.Printf("Sending message to resource server: %v\n", fromClient.Request.Type)
 				if err := c.WriteMessage(websocket.TextMessage, jsonMsg); err != nil {
 					fmt.Println("Error emitting clientSessionDescription: ", err)
 				}
@@ -176,7 +180,6 @@ func registerReesourceServerWebsocketHandler(serverMux *http.ServeMux) {
 
 		for {
 			_, message, err := c.ReadMessage()
-			fmt.Println("received answer")
 			if err != nil {
 				fmt.Println("Error reading message: ", err)
 				break
@@ -188,13 +191,13 @@ func registerReesourceServerWebsocketHandler(serverMux *http.ServeMux) {
 				continue
 			}
 
+			fmt.Printf("Received message from resource server: %v\n", wsMessage.Type)
 			responseSocket, err := consumeWaiter(wsMessage.ClientID)
 			if err != nil {
 				fmt.Println("Error consuming waiter: ", err)
 				return
 			}
 
-			fmt.Println("send answer to http server")
 			responseSocket <- ResourceServerResponse{
 				Response: wsMessage,
 				Error:    nil,
@@ -205,7 +208,6 @@ func registerReesourceServerWebsocketHandler(serverMux *http.ServeMux) {
 
 func registerClientWebsocketHandler(serverMux *http.ServeMux) {
 	serverMux.HandleFunc("/client/ws", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("client offer")
 		c, err := websocketUpgrader.Upgrade(w, r, nil)
 		if err != nil {
 			fmt.Println("Error upgrading websocket: ", err)
@@ -230,6 +232,8 @@ func registerClientWebsocketHandler(serverMux *http.ServeMux) {
 					continue
 				}
 
+				fmt.Printf("Received message from client: %v\n", wsMessage.Type)
+
 				toResourceServer <- ResourceServerRequest{
 					Request: ResourceServerWebSocketMessage{
 						ClientID: clinetId,
@@ -253,6 +257,7 @@ func registerClientWebsocketHandler(serverMux *http.ServeMux) {
 				fmt.Println("Error marshaling response: ", err)
 				continue
 			}
+			fmt.Printf("Sending response to client: %v\n", responseData.Response.Type)
 			if err := c.WriteMessage(websocket.TextMessage, responseStr); err != nil {
 				fmt.Println("Error emitting response: ", err)
 			}

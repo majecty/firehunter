@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -32,51 +33,110 @@ func main() {
 }
 
 type WebSocketMessage struct {
-	Type string          `json:"type"`
-	Data json.RawMessage `json:"data"`
+	Type     string          `json:"type"`
+	Data     json.RawMessage `json:"data"`
+	ClientID int32           `json:"clientId"`
 }
 
-type OfferData struct {
-	Offer     webrtc.SessionDescription `json:"offer"`
-	RequestID int32                     `json:"requestId"`
-}
+type WebSocketData interface{}
 
-type AnswerData struct {
-	Answer    webrtc.SessionDescription `json:"answer"`
-	RequestID int32                     `json:"requestId"`
-}
+type Offer = webrtc.SessionDescription
+type Answer = webrtc.SessionDescription
+type Candidate = webrtc.ICECandidateInit
 
-func (wsm *WebSocketMessage) isHeartBeat() bool {
-	if wsm.Type == "heartbeat" {
-		return true
+func parseWebSocketMessage(message []byte) (*WebSocketMessage, WebSocketData, error) {
+	var wsMessage WebSocketMessage
+	if err := json.Unmarshal(message, &wsMessage); err != nil {
+		return nil, nil, fmt.Errorf("failed to unmarshal message: %w", err)
 	}
-	return false
+
+	if wsMessage.Type == "offer" {
+		var offer Offer
+		if err := json.Unmarshal(wsMessage.Data, &offer); err != nil {
+			return nil, nil, fmt.Errorf("failed to unmarshal offer: %w", err)
+		}
+		return &wsMessage, &offer, nil
+	}
+
+	if wsMessage.Type == "candidate" {
+		var candidate Candidate
+		if err := json.Unmarshal(wsMessage.Data, &candidate); err != nil {
+			return nil, nil, fmt.Errorf("failed to unmarshal candidate: %w", err)
+		}
+		return &wsMessage, &candidate, nil
+	}
+
+	return nil, nil, fmt.Errorf("unknown message type: %s", wsMessage.Type)
 }
 
-func (wsm *WebSocketMessage) parseOffer() (offer OfferData, err error) {
-	if wsm.Type != "offer" {
-		return offer, errors.New("invalid type " + wsm.Type)
+func createAnswerMessage(answer Answer, clientID int32) ([]byte, error) {
+	data, err := json.Marshal(answer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal answer: %w", err)
 	}
-	if err := json.Unmarshal(wsm.Data, &offer); err != nil {
-		return offer, fmt.Errorf("failed to unmarshal offer: %w", err)
-	}
-	return offer, nil
-}
 
-func createAnswerMessage(answer webrtc.SessionDescription, requestID int32) ([]byte, error) {
-	data, err := json.Marshal(AnswerData{
-		Answer:    answer,
-		RequestID: requestID,
+	message, err := json.Marshal(WebSocketMessage{
+		Type:     "answer",
+		Data:     data,
+		ClientID: clientID,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal answer data: %w", err)
+		return nil, fmt.Errorf("failed to marshal message: %w", err)
 	}
 
-	return json.Marshal(
-		WebSocketMessage{
-			Type: "answer",
-			Data: json.RawMessage(data),
-		})
+	return message, nil
+}
+
+func createCandidateMessage(candidate *webrtc.ICECandidate, clientID int32) ([]byte, error) {
+	data, err := json.Marshal(candidate.ToJSON())
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal candidate: %w", err)
+	}
+
+	message, err := json.Marshal(WebSocketMessage{
+		Type:     "candidate",
+		Data:     data,
+		ClientID: clientID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal message: %w", err)
+	}
+
+	return message, nil
+}
+
+type Peer struct {
+	ID int32
+	pc *webrtc.PeerConnection
+	c  *websocket.Conn
+}
+
+type Peers struct {
+	peers map[int32]*Peer
+	mu    sync.RWMutex
+}
+
+var (
+	peers = Peers{peers: make(map[int32]*Peer)}
+)
+
+func getPeerConnection(clientID int32) (*webrtc.PeerConnection, error) {
+	peers.mu.RLock()
+	defer peers.mu.RUnlock()
+
+	peer, ok := peers.peers[clientID]
+	if !ok {
+		return nil, fmt.Errorf("peer not found")
+	}
+
+	return peer.pc, nil
+}
+
+func addPeer(clientID int32, pc *webrtc.PeerConnection, c *websocket.Conn) {
+	peers.mu.Lock()
+	defer peers.mu.Unlock()
+
+	peers.peers[clientID] = &Peer{ID: clientID, pc: pc, c: c}
 }
 
 func webrtcMain(ctx context.Context) error {
@@ -97,36 +157,71 @@ func webrtcMain(ctx context.Context) error {
 
 	go func() {
 		for {
-			webSocketMessage, err := readMessage(c)
+			webSocketMessage, websocketData, err := readMessage(c)
 			if err != nil {
 				fmt.Printf("failed to read message: %v\n", err)
 				continue
 			}
-			fmt.Println("readMessage success")
+			fmt.Printf("readMessage: %v\n", webSocketMessage.Type)
 
-			if webSocketMessage.isHeartBeat() {
-				continue
-			}
+			switch data := websocketData.(type) {
+			case *Candidate:
+				pc, err := getPeerConnection(webSocketMessage.ClientID)
+				if err != nil {
+					fmt.Printf("failed to get peer connection: %v\n", err)
+					continue
+				}
+				pc.AddICECandidate(*data)
 
-			offer, err := webSocketMessage.parseOffer()
-			if err != nil {
-				fmt.Printf("failed to parse offer: %v\n", err)
-				continue
-			}
+			case *Offer:
+				// TODO: need to cldanup peerConenction
+				peerConnection, err := registerWebRTCEvents(ctx)
+				if err != nil {
+					fmt.Printf("failed to register WebRTC events: %v\n", err)
+					continue
+				}
+				addPeer(webSocketMessage.ClientID, peerConnection, c)
+				peerConnection.OnICECandidate(func(candidate *webrtc.ICECandidate) {
+					if candidate == nil {
+						return
+					}
 
-			answer, err := registerWebRTCEvents(ctx, offer.Offer)
-			if err != nil {
-				fmt.Printf("failed to register WebRTC events: %v\n", err)
-				continue
-			}
-			answerMessage, err := createAnswerMessage(answer, offer.RequestID)
-			if err != nil {
-				fmt.Printf("failed to create answer message: %v\n", err)
-				continue
-			}
-			if err := c.WriteMessage(websocket.TextMessage, answerMessage); err != nil {
-				fmt.Printf("failed to write message: %v\n", err)
-				continue
+					candidateMessage, err := createCandidateMessage(candidate, webSocketMessage.ClientID)
+					if err != nil {
+						fmt.Printf("failed to create candidate message: %v\n", err)
+						return
+					}
+					fmt.Println("send candidate message")
+					if err := c.WriteMessage(websocket.TextMessage, candidateMessage); err != nil {
+						fmt.Printf("failed to write message: %v\n", err)
+						return
+					}
+				})
+
+				if err := acceptOffer(peerConnection, *data); err != nil {
+					// return nil, answer, fmt.Errorf("failed to accept offer: %w", err)
+					fmt.Printf("failed to accept offer: %v\n", err)
+					continue
+				}
+
+				answer, err := createAnswer(peerConnection)
+				if err != nil {
+					fmt.Printf("failed to create answer: %v\n", err)
+					continue
+					// return nil, answer, fmt.Errorf("failed to create answer: %w", err)
+				}
+
+				answerMessage, err := createAnswerMessage(answer, webSocketMessage.ClientID)
+				if err != nil {
+					fmt.Printf("failed to create answer message: %v\n", err)
+					continue
+				}
+				fmt.Println("send answer message")
+				if err := c.WriteMessage(websocket.TextMessage, answerMessage); err != nil {
+					fmt.Printf("failed to write message: %v\n", err)
+					continue
+				}
+
 			}
 		}
 	}()
@@ -146,24 +241,18 @@ func checkVideoFile() error {
 	return nil
 }
 
-func registerWebRTCEvents(ctx context.Context, offer webrtc.SessionDescription) (answer webrtc.SessionDescription, err error) {
+func registerWebRTCEvents(ctx context.Context) (peerConnection *webrtc.PeerConnection, err error) {
 	fmt.Println("registerWebRTCEvents")
-
-	peerConnection, err := createPeerConnection()
+	peerConnection, err = createPeerConnection()
 	if err != nil {
-		return answer, fmt.Errorf("failed to create PeerConnection: %w", err)
+		return nil, fmt.Errorf("failed to create PeerConnection: %w", err)
 	}
-	defer func() {
-		if err := peerConnection.Close(); err != nil {
-			fmt.Printf("Failed to close PeerConnection: %v\n", err)
-		}
-	}()
 
 	iceConnectedCtx, iceConnectedCtxCancel := context.WithCancel(ctx)
 
 	videoTrack, videoTrackErr := createVideoTrack(peerConnection)
 	if videoTrackErr != nil {
-		return answer, fmt.Errorf("failed to create video track: %w", videoTrackErr)
+		return nil, fmt.Errorf("failed to create video track: %w", videoTrackErr)
 	}
 
 	go streamingVideo(iceConnectedCtx, videoTrack)
@@ -171,28 +260,15 @@ func registerWebRTCEvents(ctx context.Context, offer webrtc.SessionDescription) 
 	registerConnectionStartedEvent(iceConnectedCtxCancel, peerConnection)
 	registerConnectionFailedEvent(peerConnection)
 
-	if err := acceptOffer(peerConnection, offer); err != nil {
-		return answer, fmt.Errorf("failed to accept offer: %w", err)
-	}
-	gatherComplete := webrtc.GatheringCompletePromise(peerConnection)
-
-	fmt.Println("waiting for ICE gathering to complete")
-	<-gatherComplete
-	fmt.Println("ICE gathering complete")
-	answer, err = createAnswer(peerConnection)
-	if err != nil {
-		return answer, fmt.Errorf("failed to create answer: %w", err)
-	}
-
-	return answer, nil
+	return peerConnection, nil
 }
 
 func createPeerConnection() (*webrtc.PeerConnection, error) {
 	return webrtc.NewPeerConnection(webrtc.Configuration{
 		ICEServers: []webrtc.ICEServer{
-			// webrtc.ICEServer{
-			// 	URLs: []string{"stun:stun.i.juhyung.dev:3478"},
-			// },
+			webrtc.ICEServer{
+				URLs: []string{"stun:stun.i.juhyung.dev:3478"},
+			},
 		},
 	})
 }
@@ -284,6 +360,7 @@ func registerConnectionFailedEvent(peerConnection *webrtc.PeerConnection) {
 }
 
 func acceptOffer(peerConnection *webrtc.PeerConnection, offer webrtc.SessionDescription) error {
+	// fmt.Printf("acceptOffer: %v\n", offer)
 	if err := peerConnection.SetRemoteDescription(offer); err != nil {
 		return fmt.Errorf("failed to set remote description: %w", err)
 	}
@@ -312,17 +389,16 @@ func connectToWebsocket() (*websocket.Conn, error) {
 	return c, nil
 }
 
-func readMessage(c *websocket.Conn) (*WebSocketMessage, error) {
+func readMessage(c *websocket.Conn) (*WebSocketMessage, WebSocketData, error) {
 	_, message, err := c.ReadMessage()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read message: %w", err)
-	}
-	fmt.Println("websocket readMessage success")
-	// log.Printf("recv: %s", message)
-	var webSocketMessage WebSocketMessage
-	if err := json.Unmarshal(message, &webSocketMessage); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal message: %w\n", err)
+		return nil, nil, fmt.Errorf("failed to read message: %w", err)
 	}
 
-	return &webSocketMessage, nil
+	wsMessage, data, err := parseWebSocketMessage(message)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to unmarshal message: %w", err)
+	}
+
+	return wsMessage, data, nil
 }
