@@ -63,7 +63,6 @@ func main() {
 	if err := http.ListenAndServe(":8478", handler); err != nil {
 		fmt.Printf("Failed to start server: %v\n", err)
 	}
-	fmt.Println("Server started on port 8478.")
 }
 
 type WaitingResponse struct {
@@ -81,14 +80,14 @@ var addWaiter = func(requestId int32, ch chan toSocketIOResponse) {
 	waitngResponse.waitings[requestId] = ch
 }
 
-var consumeWaiter = func(requestId int32) (error, chan toSocketIOResponse) {
+var consumeWaiter = func(requestId int32) (chan toSocketIOResponse, error) {
 	waitngResponse.mu.Lock()
 	defer waitngResponse.mu.Unlock()
 	ch, ok := waitngResponse.waitings[requestId]
 	if !ok {
-		return fmt.Errorf("No waiter found for requestId: %d", requestId), nil
+		return nil, fmt.Errorf("no waiter found for requestId: %d", requestId)
 	}
-	return nil, ch
+	return ch, nil
 }
 
 func runSocketIOServer(serverMux *http.ServeMux) {
@@ -117,7 +116,7 @@ func runSocketIOServer(serverMux *http.ServeMux) {
 			}
 			fmt.Println("serverSessionDescription: ", data)
 
-			err, responseSocket := consumeWaiter(requestId)
+			responseSocket, err := consumeWaiter(requestId)
 			if err != nil {
 				fmt.Println("Error consuming waiter: ", err)
 				return
