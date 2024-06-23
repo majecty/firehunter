@@ -31,22 +31,22 @@ type SessionDescriptionResponse struct {
 }
 
 var (
-	toSocketIO chan toSocketIORequest
+	toWebSocket chan toWebSocketRequest
 )
 
-type toSocketIORequest struct {
-	clientSessionDescription string
-	response                 chan toSocketIOResponse
+type toWebSocketRequest struct {
+	offer        string
+	responseChan chan toWebSocketResponse
 }
 
-type toSocketIOResponse struct {
-	serverSessionDescription string
-	error                    error
+type toWebSocketResponse struct {
+	answer string
+	error  error
 }
 
-type SocketIOSDRequest struct {
-	SessionDescription string `json:"sessionDescription"`
-	RequestId          int32  `json:"requestId"`
+type WebSocketSDRequest struct {
+	Offer     string `json:"sessionDescription"`
+	RequestId int32  `json:"requestId"`
 }
 
 func main() {
@@ -63,8 +63,8 @@ func run(ctx context.Context) error {
 
 	fmt.Println("turn server start goroutine")
 	go runTurnServer(ctx)
-	fmt.Println("register SocketIO")
-	registerSocketIOHandler(http.DefaultServeMux)
+	fmt.Println("register WebSocket")
+	registerWebSocketHandler(http.DefaultServeMux)
 	fmt.Println("register http server")
 	registerHTTPHandler(http.DefaultServeMux)
 	fmt.Println("add cors")
@@ -83,7 +83,7 @@ func runHTTPServer(ctx context.Context, handler http.Handler) error {
 		Handler: handler,
 	}
 	go func() {
-		fmt.Println("start http server")
+		fmt.Println("start http server at :8124")
 		if err := server.ListenAndServe(); err != nil {
 			if err != http.ErrServerClosed {
 				fmt.Printf("HTTP server closed %v", err)
@@ -102,21 +102,21 @@ func runHTTPServer(ctx context.Context, handler http.Handler) error {
 }
 
 type WaitingResponse struct {
-	waitings map[int32]chan toSocketIOResponse
+	waitings map[int32]chan toWebSocketResponse
 	mu       sync.Mutex
 }
 
 var waitngResponse = WaitingResponse{
-	waitings: make(map[int32]chan toSocketIOResponse),
+	waitings: make(map[int32]chan toWebSocketResponse),
 }
 
-var addWaiter = func(requestId int32, ch chan toSocketIOResponse) {
+var addWaiter = func(requestId int32, ch chan toWebSocketResponse) {
 	waitngResponse.mu.Lock()
 	defer waitngResponse.mu.Unlock()
 	waitngResponse.waitings[requestId] = ch
 }
 
-var consumeWaiter = func(requestId int32) (chan toSocketIOResponse, error) {
+var consumeWaiter = func(requestId int32) (chan toWebSocketResponse, error) {
 	waitngResponse.mu.Lock()
 	defer waitngResponse.mu.Unlock()
 	ch, ok := waitngResponse.waitings[requestId]
@@ -126,7 +126,7 @@ var consumeWaiter = func(requestId int32) (chan toSocketIOResponse, error) {
 	return ch, nil
 }
 
-func registerSocketIOHandler(serverMux *http.ServeMux) {
+func registerWebSocketHandler(serverMux *http.ServeMux) {
 	io := socket.NewServer(nil, nil)
 	serverMux.Handle("/socket.io/", io.ServeHandler(nil))
 
@@ -158,24 +158,24 @@ func registerSocketIOHandler(serverMux *http.ServeMux) {
 				return
 			}
 
-			responseSocket <- toSocketIOResponse{
-				serverSessionDescription: data,
-				error:                    nil,
+			responseSocket <- toWebSocketResponse{
+				answer: data,
+				error:  nil,
 			}
 		})
 
 		go func() {
 			for {
-				fromClient := <-toSocketIO
+				fromClient := <-toWebSocket
 				requestId := rand.Int31()
 
-				if err := client.Emit("clientSessionDescription", SocketIOSDRequest{
-					SessionDescription: fromClient.clientSessionDescription,
-					RequestId:          requestId,
+				if err := client.Emit("clientSessionDescription", WebSocketSDRequest{
+					Offer:     fromClient.offer,
+					RequestId: requestId,
 				}); err != nil {
 					fmt.Println("Error emitting clientSessionDescription: ", err)
 				}
-				addWaiter(requestId, fromClient.response)
+				addWaiter(requestId, fromClient.responseChan)
 			}
 		}()
 	})
@@ -190,10 +190,10 @@ func registerHTTPHandler(serverMux *http.ServeMux) {
 		}
 
 		fmt.Println("sessionDescription: ", sessionDescription.SessionDescription)
-		response := make(chan toSocketIOResponse)
-		toSocketIO <- toSocketIORequest{
-			clientSessionDescription: sessionDescription.SessionDescription,
-			response:                 response,
+		response := make(chan toWebSocketResponse)
+		toWebSocket <- toWebSocketRequest{
+			offer:        sessionDescription.SessionDescription,
+			responseChan: response,
 		}
 		responseData := <-response
 		if responseData.error != nil {
@@ -202,7 +202,7 @@ func registerHTTPHandler(serverMux *http.ServeMux) {
 		}
 
 		if err := encode(w, r, http.StatusOK, SessionDescriptionResponse{
-			SessionDescription: responseData.serverSessionDescription,
+			SessionDescription: responseData.answer,
 		}); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
