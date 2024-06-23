@@ -17,24 +17,32 @@ const pc = new RTCPeerConnection({
 ]
 });
 
-const ws = new WebSocket('ws://localhost:8124/client/ws');
-
 
 export function SixthMovie({ ...props }) {
   console.log("SixthMovie", props);
   const [wsOpen, setWsOpen] = useState(false);
+  const [ws, setWs] = useState<WebSocket | null>(null);
 
   useEffect(() => {
-    ws.onopen = () => {
+    if (wsOpen === true) {
+      return;
+    }
+    if (ws != null) {
+      return
+    }
+    console.log("initialize websocket")
+    const ws_ = new WebSocket('ws://localhost:8124/client/ws');
+    setWs(ws_);
+    ws_.onopen = () => {
       console.log('ws.onopen');
       setWsOpen(true);
     }
 
-    ws.onclose = () => {
+    ws_.onclose = () => {
       console.log('ws.onclose');
       setWsOpen(false);
     }
-  }, [wsOpen]);
+  }, [wsOpen, ws]);
 
   if (wsOpen === false) {
     return <div>
@@ -56,6 +64,9 @@ export function SixthMovie({ ...props }) {
   const [fov, setFov] = useState(80);
 
   useEffect(() => {
+    if (ws == null) {
+      return;
+    }
     console.log("ThirdHome useEffect");
 
     ws.onmessage = e => {
@@ -135,7 +146,7 @@ export function SixthMovie({ ...props }) {
     })
     .catch(e => console.error(e));
 
-  }, [])
+  }, [ws])
 
 
   return <div>
