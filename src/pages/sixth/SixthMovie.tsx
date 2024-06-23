@@ -17,6 +17,9 @@ const pc = new RTCPeerConnection({
 ]
 });
 
+const signalServerUrl = 'wss://signal-firehunter.i.juhyung.dev/client/ws';
+// const signalServerUrl = 'ws://localhost:8124/client/ws';
+
 
 export function SixthMovie({ ...props }) {
   console.log("SixthMovie", props);
@@ -31,7 +34,7 @@ export function SixthMovie({ ...props }) {
       return
     }
     console.log("initialize websocket")
-    const ws_ = new WebSocket('ws://localhost:8124/client/ws');
+    const ws_ = new WebSocket(signalServerUrl);
     setWs(ws_);
     ws_.onopen = () => {
       console.log('ws.onopen');
@@ -182,8 +185,4 @@ export function SixthMovie({ ...props }) {
       videoRef.current?.play();
     }}>Play</button>
   </div>
-}
-
-function getMovieFileUrl(id: "1" | "2" | "3" | "4" | "5", videoBaseUrl: string) {
-  return `${videoBaseUrl}/videos/video-${id}.mp4`;
 }

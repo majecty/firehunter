@@ -20,7 +20,10 @@ import (
 
 var (
 	h264FrameDuration = time.Millisecond * 33
-	signallingServer  = "localhost:8124"
+	// signallingServer  = "localhost:8124"
+	// signalScheme = "ws"
+	signalScheme     = "wss"
+	signallingServer = "signal-firehunter.i.juhyung.dev"
 )
 
 func main() {
@@ -379,7 +382,7 @@ func createAnswer(peerConnection *webrtc.PeerConnection) (answer webrtc.SessionD
 }
 
 func connectToWebsocket() (*websocket.Conn, error) {
-	u := url.URL{Scheme: "ws", Host: signallingServer, Path: "/ws"}
+	u := url.URL{Scheme: signalScheme, Host: signallingServer, Path: "/ws"}
 	fmt.Printf("connecting to %s\n", u.String())
 
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
