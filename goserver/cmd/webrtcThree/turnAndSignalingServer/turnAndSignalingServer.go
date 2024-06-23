@@ -184,7 +184,8 @@ var consumeWaiter = func(requestId int32) (chan toWebSocketResponse, error) {
 var websocketUpgrader = websocket.Upgrader{}
 
 func registerWebSocketHandler(serverMux *http.ServeMux) {
-	serverMux.HandleFunc("/socket.io/", func(w http.ResponseWriter, r *http.Request) {
+	serverMux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("websocket connected")
 		c, err := websocketUpgrader.Upgrade(w, r, nil)
 		if err != nil {
 			fmt.Println("Error upgrading websocket: ", err)
