@@ -24,11 +24,11 @@ import (
 )
 
 type SessionDescriptionRequest struct {
-	SessionDescription webrtc.SessionDescription `json:"sessionDescription"`
+	Offer webrtc.SessionDescription `json:"offer"`
 }
 
 type SessionDescriptionResponse struct {
-	SessionDescription webrtc.SessionDescription `json:"sessionDescription"`
+	Answer webrtc.SessionDescription `json:"answer"`
 }
 
 var (
@@ -241,17 +241,17 @@ func registerWebSocketHandler(serverMux *http.ServeMux) {
 }
 
 func registerHTTPHandler(serverMux *http.ServeMux) {
-	serverMux.HandleFunc("/client/sd", func(w http.ResponseWriter, r *http.Request) {
+	serverMux.HandleFunc("/client/offer", func(w http.ResponseWriter, r *http.Request) {
 		sessionDescription, err := decode[SessionDescriptionRequest](r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		fmt.Println("sessionDescription: ", sessionDescription.SessionDescription)
+		fmt.Println("sessionDescription: ", sessionDescription.Offer)
 		response := make(chan toWebSocketResponse)
 		toWebSocket <- toWebSocketRequest{
-			offer:        sessionDescription.SessionDescription,
+			offer:        sessionDescription.Offer,
 			responseChan: response,
 		}
 		responseData := <-response
@@ -261,7 +261,7 @@ func registerHTTPHandler(serverMux *http.ServeMux) {
 		}
 
 		if err := encode(w, r, http.StatusOK, SessionDescriptionResponse{
-			SessionDescription: responseData.answer,
+			Answer: responseData.answer,
 		}); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}

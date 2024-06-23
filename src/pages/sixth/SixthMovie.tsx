@@ -6,7 +6,7 @@ import { Entity, Scene } from "aframe-react";
 const pc = new RTCPeerConnection({
   iceServers: [
     {
-      urls: "turn:turn.i.juhyung.dev",
+      urls: "turn:turn.i.juhyung.dev:3478",
       username: "juhyung",
       credential: "juhyung",
     }
@@ -28,38 +28,6 @@ export function SixthMovie({ ...props }) {
       <p>현재 movie 뒤의 숫자: {props.id}</p>
       </div>
   }
-
-  const videoBaseUrl = props.videoBaseUrl;
-  if (!videoBaseUrl) {
-    return <div>
-      <h1>여섯번째 시도</h1>
-      <p>노트북에서 보이는 QR코드로 접속해주세요.</p>
-      <p>{videoBaseUrl}</p>
-    </div>
-  }
-
-  let decodedUrl;
-  try {
-   decodedUrl = atob(videoBaseUrl.replace(/_/g, '/').replace(/-/g, '+'))
-  } catch (err) {
-    if (err instanceof Error) {
-      decodedUrl = "올바르지 않은 주소입니다. " + err.message;
-    } else {
-      decodedUrl = "올바르지 않은 주소입니다. " + err;
-    }
-
-    return <div>
-      <h1>여섯번째 시도</h1>
-      <p>
-        공유기 안에서 영상을 가져와서 재생합니다.
-      </p>
-      <p>
-        노트북 주소가 잘못되었습니다: {decodedUrl}
-      </p>
-    </div>
-  }
-
-  const videoUrl = getMovieFileUrl(props.id as "1" | "2" | "3" | "4" | "5", decodedUrl);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const [logs, setLogs] = useState<string[]>([]);
@@ -103,13 +71,13 @@ export function SixthMovie({ ...props }) {
           btoa(JSON.stringify(pc.localDescription))
         )
 
-        fetch(`https://firehunter.i.juhyung.dev/sessiondescription`, {
+        fetch(`https://localhost:8123/client/offer`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            sessionDescription: btoa(JSON.stringify(pc.localDescription))
+            offer: JSON.stringify(pc.localDescription)
           })
         }).then((response) => {
           return response.json()
@@ -160,7 +128,7 @@ export function SixthMovie({ ...props }) {
     <Scene>
       <a-assets>
         <video id="sample-video" autoplay loop={true}
-          src={videoUrl} crossorigin="anonymous"
+           crossorigin="anonymous"
           ref={videoRef}
         />
       </a-assets>
