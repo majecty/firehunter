@@ -25,6 +25,24 @@ type SessionDescriptionRequest struct {
 	SessionDescription string `json:"sessionDescription"`
 }
 
+type SessionDescriptionResponse struct {
+	SessionDescription string `json:"sessionDescription"`
+}
+
+var (
+	toSocketIO chan toSocketIORequest
+)
+
+type toSocketIORequest struct {
+	clientSessionDescription string
+	response                 chan toSocketIOResponse
+}
+
+type toSocketIOResponse struct {
+	serverSessionDescription string
+	error                    error
+}
+
 func main() {
 	go runTurnServer()
 
@@ -49,15 +67,29 @@ func runSocketIOServer(serverMux *http.ServeMux) {
 
 func runHTTPServer(serverMux *http.ServeMux) {
 	serverMux.HandleFunc("/client/sd", func(w http.ResponseWriter, r *http.Request) {
-		sessionDescription := SessionDescriptionRequest{}
-		defer r.Body.Close()
-
-		if err := json.NewDecoder(r.Body).Decode(&sessionDescription); err != nil {
+		sessionDescription, err := decode[SessionDescriptionRequest](r)
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		fmt.Println("sessionDescription: ", sessionDescription.SessionDescription)
+		response := make(chan toSocketIOResponse)
+		toSocketIO <- toSocketIORequest{
+			clientSessionDescription: sessionDescription.SessionDescription,
+			response:                 response,
+		}
+		responseData := <-response
+		if responseData.error != nil {
+			http.Error(w, responseData.error.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if err := encode(w, r, http.StatusOK, SessionDescriptionResponse{
+			SessionDescription: responseData.serverSessionDescription,
+		}); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	})
 }
 
@@ -101,4 +133,23 @@ func runTurnServer() {
 	if err = s.Close(); err != nil {
 		log.Panic(err)
 	}
+}
+
+// https://grafana.com/blog/2024/02/09/how-i-write-http-services-in-go-after-13-years/
+func encode[T any](w http.ResponseWriter, r *http.Request, status int, v T) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		return fmt.Errorf("failed to encode response: %w", err)
+	}
+	return nil
+}
+
+// https://grafana.com/blog/2024/02/09/how-i-write-http-services-in-go-after-13-years/
+func decode[T any](r *http.Request) (T, error) {
+	var v T
+	if err := json.NewDecoder(r.Body).Decode(&v); err != nil {
+		return v, fmt.Errorf("failed to decode request: %w", err)
+	}
+	return v, nil
 }
