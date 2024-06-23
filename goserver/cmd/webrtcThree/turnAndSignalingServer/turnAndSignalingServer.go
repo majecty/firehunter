@@ -5,20 +5,54 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
 	"syscall"
 
 	"github.com/pion/turn/v3"
+	"github.com/rs/cors"
+	"github.com/zishang520/socket.io/socket"
 )
+
+type SessionDescriptionRequest struct {
+	SessionDescription string `json:"sessionDescription"`
+}
 
 func main() {
 	go runTurnServer()
+
+	io := socket.NewServer(nil, nil)
+	http.Handle("/socket.io/", io.ServeHandler(nil))
+
+	io.On("connection", func(clients ...any) {
+		client := clients[0].(*socket.Socket)
+		fmt.Println("connected:", client.Id())
+		client.Emit("debugMessage", "connected using client.Emit")
+	})
+	fmt.Println("Hello, worlsd.")
+	handler := cors.AllowAll().Handler(http.DefaultServeMux)
+
+	http.HandleFunc("/client/sd", func(w http.ResponseWriter, r *http.Request) {
+		sessionDescription := SessionDescriptionRequest{}
+		defer r.Body.Close()
+
+		if err := json.NewDecoder(r.Body).Decode(&sessionDescription); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		fmt.Println("sessionDescription: ", sessionDescription.SessionDescription)
+	})
+
+	http.ListenAndServe(":8478", handler)
+	fmt.Println("Server started on port 8478.")
 }
 
 func runTurnServer() {
@@ -61,3 +95,4 @@ func runTurnServer() {
 	if err = s.Close(); err != nil {
 		log.Panic(err)
 	}
+}
