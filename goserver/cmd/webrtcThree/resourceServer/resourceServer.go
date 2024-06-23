@@ -231,7 +231,7 @@ func webrtcMain(ctx context.Context) error {
 	return nil
 }
 
-var videoFileName = "resource/0518sample.mp4"
+var videoFileName = "resource/0518sample_annexb.h264"
 
 func checkVideoFile() error {
 	if _, err := os.Stat(videoFileName); err != nil {

@@ -160,12 +160,12 @@ export function SixthMovie({ ...props }) {
     </p>
     <pre>{JSON.stringify(props, null, 2)}</pre>
 
-        <video id="sample-video" autoplay loop={true}
+        {/* <video id="sample-video" autoplay loop={true}
            crossorigin="anonymous"
           ref={videoRef}
-        />
+        /> */}
 
-    {/* <Scene>
+    <Scene>
       <a-assets>
         <video id="sample-video" autoplay loop={true}
            crossorigin="anonymous"
@@ -174,10 +174,13 @@ export function SixthMovie({ ...props }) {
       </a-assets>
       <a-videosphere src="#sample-video"></a-videosphere>
       <a-camera fov={fov.toString()}>  </a-camera>
-    </Scene> */}
+    </Scene>
 
     <p style={{ position: "absolute", top: "95%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999", color: "white", backgroundColor: "black" }}>FOV</p>
     <input type="range" min="30" max="120" value={fov} onChange={(e) => setFov(parseInt((e.target! as any).value))} style={{ position: "absolute", top: "95%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999"}} />
+    <button style={{position: "absolute", top: "90%", left: "50%", transform: "translate(-50%, -50%)", zIndex: "9999"}} onClick={() => {
+      videoRef.current?.play();
+    }}>Play</button>
   </div>
 }
 
