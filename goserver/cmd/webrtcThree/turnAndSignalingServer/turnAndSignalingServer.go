@@ -5,10 +5,10 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"log"
 	"math/rand"
 	"net"
 	"net/http"
@@ -16,7 +16,6 @@ import (
 	"os/signal"
 	"strconv"
 	"sync"
-	"syscall"
 
 	"github.com/pion/turn/v3"
 	"github.com/rs/cors"
@@ -51,22 +50,55 @@ type SocketIOSDRequest struct {
 }
 
 func main() {
-	run()
+	ctx := context.Background()
+	if err := run(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		os.Exit(1)
+	}
 }
 
-func run() {
-	fmt.Println("run turn goroutine")
-	go runTurnServer()
+func run(ctx context.Context) error {
+	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
+	defer cancel()
+
+	fmt.Println("turn server start goroutine")
+	go runTurnServer(ctx)
 	fmt.Println("register SocketIO")
-	runSocketIOServer(http.DefaultServeMux)
+	registerSocketIOHandler(http.DefaultServeMux)
 	fmt.Println("register http server")
-	runHTTPServer(http.DefaultServeMux)
+	registerHTTPHandler(http.DefaultServeMux)
 	fmt.Println("add cors")
 	handler := cors.AllowAll().Handler(http.DefaultServeMux)
-	fmt.Println("start server")
-	if err := http.ListenAndServe(":8478", handler); err != nil {
-		fmt.Printf("Failed to start server: %v\n", err)
+
+	if err := runHTTPServer(ctx, handler); err != nil {
+		return fmt.Errorf("failed to run HTTP server: %w", err)
 	}
+
+	return nil
+}
+
+func runHTTPServer(ctx context.Context, handler http.Handler) error {
+	server := &http.Server{
+		Addr:    ":8124",
+		Handler: handler,
+	}
+	go func() {
+		fmt.Println("start http server")
+		if err := server.ListenAndServe(); err != nil {
+			if err != http.ErrServerClosed {
+				fmt.Printf("HTTP server closed %v", err)
+			} else {
+				fmt.Printf("Failed to start server: %v", err)
+			}
+		}
+	}()
+
+	<-ctx.Done()
+	if err := server.Shutdown(ctx); err != nil {
+		return fmt.Errorf("failed to shutdown server: %w", err)
+	}
+
+	return nil
 }
 
 type WaitingResponse struct {
@@ -94,7 +126,7 @@ var consumeWaiter = func(requestId int32) (chan toSocketIOResponse, error) {
 	return ch, nil
 }
 
-func runSocketIOServer(serverMux *http.ServeMux) {
+func registerSocketIOHandler(serverMux *http.ServeMux) {
 	io := socket.NewServer(nil, nil)
 	serverMux.Handle("/socket.io/", io.ServeHandler(nil))
 
@@ -147,11 +179,9 @@ func runSocketIOServer(serverMux *http.ServeMux) {
 			}
 		}()
 	})
-
-	fmt.Println("Hello, worlsd.")
 }
 
-func runHTTPServer(serverMux *http.ServeMux) {
+func registerHTTPHandler(serverMux *http.ServeMux) {
 	serverMux.HandleFunc("/client/sd", func(w http.ResponseWriter, r *http.Request) {
 		sessionDescription, err := decode[SessionDescriptionRequest](r)
 		if err != nil {
@@ -179,7 +209,7 @@ func runHTTPServer(serverMux *http.ServeMux) {
 	})
 }
 
-func runTurnServer() {
+func runTurnServer(ctx context.Context) {
 	publicIP := "3.34.13.104"
 	port := flag.Int("port", 3478, "Listening port.")
 	realm := flag.String("realm", "turn.i.juhyung.dev", "Realm (defaults to \"pion.ly\")")
@@ -187,7 +217,8 @@ func runTurnServer() {
 
 	udpListener, err := net.ListenPacket("udp4", "0.0.0.0:"+strconv.Itoa(*port))
 	if err != nil {
-		log.Panicf("Failed to create TURN server listener: %s", err)
+		fmt.Printf("failed to create TURN server listener: %v\n", err)
+		return
 	}
 
 	s, err := turn.NewServer(turn.ServerConfig{
@@ -208,16 +239,17 @@ func runTurnServer() {
 		},
 	})
 	if err != nil {
-		log.Panic(err)
+		fmt.Printf("failed to create TURN server: %v\n", err)
+		return
 	}
 
 	fmt.Println("Listening on", udpListener.LocalAddr())
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	<-sigs
+
+	<-ctx.Done()
 
 	if err = s.Close(); err != nil {
-		log.Panic(err)
+		fmt.Printf("failed to close TURN server: %v\n", err)
+		return
 	}
 }
 
