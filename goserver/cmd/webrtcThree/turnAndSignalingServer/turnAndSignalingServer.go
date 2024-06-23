@@ -17,17 +17,18 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/gorilla/websocket"
 	"github.com/pion/turn/v3"
+	"github.com/pion/webrtc/v4"
 	"github.com/rs/cors"
-	"github.com/zishang520/socket.io/socket"
 )
 
 type SessionDescriptionRequest struct {
-	SessionDescription string `json:"sessionDescription"`
+	SessionDescription webrtc.SessionDescription `json:"sessionDescription"`
 }
 
 type SessionDescriptionResponse struct {
-	SessionDescription string `json:"sessionDescription"`
+	SessionDescription webrtc.SessionDescription `json:"sessionDescription"`
 }
 
 var (
@@ -35,18 +36,72 @@ var (
 )
 
 type toWebSocketRequest struct {
-	offer        string
+	offer        webrtc.SessionDescription
 	responseChan chan toWebSocketResponse
 }
 
 type toWebSocketResponse struct {
-	answer string
+	answer webrtc.SessionDescription
 	error  error
 }
 
 type WebSocketSDRequest struct {
 	Offer     string `json:"sessionDescription"`
 	RequestId int32  `json:"requestId"`
+}
+type WebSocketMessage struct {
+	Type string          `json:"type"`
+	Data json.RawMessage `json:"data"`
+}
+
+type OfferData struct {
+	Offer     webrtc.SessionDescription `json:"offer"`
+	RequestID int32                     `json:"requestId"`
+}
+
+func createOfferMessage(offer webrtc.SessionDescription, requestId int32) ([]byte, error) {
+	offerData := OfferData{
+		Offer:     offer,
+		RequestID: requestId,
+	}
+
+	data, err := json.Marshal(offerData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal offer: %w", err)
+	}
+
+	message, err := json.Marshal(WebSocketMessage{
+		Type: "offer",
+		Data: data,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal message: %w", err)
+	}
+
+	return message, nil
+}
+
+type AnswerData struct {
+	Answer    webrtc.SessionDescription `json:"answer"`
+	RequestID int32                     `json:"requestId"`
+}
+
+func parseAnswer(message []byte) (AnswerData, error) {
+	var wsMessage WebSocketMessage
+	if err := json.Unmarshal(message, &wsMessage); err != nil {
+		return AnswerData{}, fmt.Errorf("failed to unmarshal message: %w", err)
+	}
+
+	if wsMessage.Type != "answer" {
+		return AnswerData{}, fmt.Errorf("invalid type %s", wsMessage.Type)
+	}
+
+	var answer AnswerData
+	if err := json.Unmarshal(wsMessage.Data, &answer); err != nil {
+		return AnswerData{}, fmt.Errorf("failed to unmarshal answer: %w", err)
+	}
+
+	return answer, nil
 }
 
 func main() {
@@ -126,58 +181,61 @@ var consumeWaiter = func(requestId int32) (chan toWebSocketResponse, error) {
 	return ch, nil
 }
 
+var websocketUpgrader = websocket.Upgrader{}
+
 func registerWebSocketHandler(serverMux *http.ServeMux) {
-	io := socket.NewServer(nil, nil)
-	serverMux.Handle("/socket.io/", io.ServeHandler(nil))
-
-	io.On("connection", func(clients ...any) {
-		client := clients[0].(*socket.Socket)
-		fmt.Println("connected:", client.Id())
-		client.Emit("debugMessage", "connected using client.Emit")
-
-		client.On("serverSessionDescription", func(datas ...any) {
-			if len(datas) != 2 {
-				fmt.Printf("serverSessionDescription: invalid number of arguments: %d\n", len(datas))
-				return
-			}
-			requestId, requestIdConversion := datas[0].(int32)
-			if !requestIdConversion {
-				fmt.Printf("serverSessionDescription: requestId is not int %v\n", datas[0])
-				return
-			}
-			data, dataConversion := datas[1].(string)
-			if !dataConversion {
-				fmt.Printf("serverSessionDescription: data is not string %v\n", datas[1])
-				return
-			}
-			fmt.Println("serverSessionDescription: ", data)
-
-			responseSocket, err := consumeWaiter(requestId)
-			if err != nil {
-				fmt.Println("Error consuming waiter: ", err)
-				return
-			}
-
-			responseSocket <- toWebSocketResponse{
-				answer: data,
-				error:  nil,
-			}
-		})
+	serverMux.HandleFunc("/socket.io/", func(w http.ResponseWriter, r *http.Request) {
+		c, err := websocketUpgrader.Upgrade(w, r, nil)
+		if err != nil {
+			fmt.Println("Error upgrading websocket: ", err)
+			return
+		}
+		defer c.Close()
 
 		go func() {
 			for {
 				fromClient := <-toWebSocket
 				requestId := rand.Int31()
 
-				if err := client.Emit("clientSessionDescription", WebSocketSDRequest{
-					Offer:     fromClient.offer,
-					RequestId: requestId,
-				}); err != nil {
+				offerMessage, err := createOfferMessage(fromClient.offer, requestId)
+				if err != nil {
+					fmt.Println("Error creating offer message: ", err)
+					continue
+				}
+
+				if err := c.WriteMessage(websocket.TextMessage, offerMessage); err != nil {
 					fmt.Println("Error emitting clientSessionDescription: ", err)
 				}
+
 				addWaiter(requestId, fromClient.responseChan)
 			}
 		}()
+
+		for {
+			_, message, err := c.ReadMessage()
+			if err != nil {
+				fmt.Println("Error reading message: ", err)
+				break
+			}
+
+			fmt.Printf("recv: %s\n", message)
+			answer, err := parseAnswer(message)
+			if err != nil {
+				fmt.Println("Error parsing answer: ", err)
+				continue
+			}
+
+			responseSocket, err := consumeWaiter(answer.RequestID)
+			if err != nil {
+				fmt.Println("Error consuming waiter: ", err)
+				return
+			}
+
+			responseSocket <- toWebSocketResponse{
+				answer: answer.Answer,
+				error:  nil,
+			}
+		}
 	})
 }
 
