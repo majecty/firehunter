@@ -21,9 +21,12 @@ func main() {
 
 	// https server 192-168-1-2.i.juhyung.dev:8443
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello, World!"))
-	})
+	// http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	// 	w.Write([]byte("Hello, World!"))
+	// })
+
+	fvideos := http.FileServer(http.Dir("./resource/"))
+	http.Handle("/", fvideos)
 
 	if err := http.ListenAndServeTLS("0.0.0.0:8443", "./resource/i.juhyung.dev/fullchain.pem", "./resource/i.juhyung.dev/privkey.pem", nil); err != nil {
 		fmt.Printf("error starting server: %v", err)
