@@ -18,6 +18,8 @@ import { FifthHome } from './pages/fifthtry/FifthHome'
 import { FifthMovie } from './pages/fifthtry/FifthMovie'
 import { SixthHome } from './pages/sixth/SixthHome'
 import { SixthMovie } from './pages/sixth/SixthMovie'
+import { SeventhHome } from './pages/seventh/SeventhHome'
+import { SeventhMovie } from './pages/seventh/SeventhMovie'
 
 export function App() {
   return (
@@ -51,6 +53,9 @@ export function App() {
 
       <SixthHome path="/sixth"/>
       <SixthMovie path="/sixth/movie/:id" />
+
+      <SeventhHome path="/seventh"/>
+      <SeventhMovie path="/seventh/movie/:id"/>
     </Router>
     </>
   )

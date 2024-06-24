@@ -24,7 +24,10 @@ export function RootHome({ ...props }) {
       다섯번째 시도: 크키별 360 영상을 짧게 잘라서 TV에서 재생
     </button>
     <button onClick={() => route('sixth')}>
-      여섯번째 시도: 공유기 안에서 영상을 가져와서 재생
+      여섯번째 시도: 공유기 안에서 영상을 webrtc로 스트리밍 재생
+    </button>
+    <button onClick={() => route('/seventh')}>
+      일곱번째 시도: 공유기 안에서 https로 웹페이지와 영상 서빙
     </button>
     </div>;
 }
