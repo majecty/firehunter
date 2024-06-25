@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 // @ts-ignore
 import { Entity, Scene } from "aframe-react";
 
-const sampleVideoUrl = "https://192-168-1-2.i.juhyung.dev:8443/videos/0518sample.mp4";
+const sampleVideoUrl = "https://192-168-17-2.i.juhyung.dev:8443/videos/0518sample.mp4";
 
 export function SeventhMovie({ ...props }) {
   // console.log("Movie", props);
@@ -44,7 +44,7 @@ export function SeventhMovie({ ...props }) {
     if (diff > 30 * 1000) {
       diff = 60 * 1000 - diff;
     }
-    if (diff > 500) {
+    if (diff > 3000) {
       videoRef.current.currentTime = now.getSeconds() + now.getMilliseconds() / 1000;
       console.log("current ", currentMillis, "now ", now.getSeconds() * 1000 + now.getMilliseconds(), "diff", diff);
     }

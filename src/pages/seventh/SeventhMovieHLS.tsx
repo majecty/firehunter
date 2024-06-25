@@ -14,6 +14,7 @@ export function SeventhMovieHLS({ ...props }) {
   const [enableSync, setEnableSync] = useState(true);
   const [fov, setFov] = useState(80);
 
+  // if (Hls.isSupported()) {
   if (!Hls.isSupported()) {
     return <div>
       <h1>이 브라우저는 HLS를 지원하지 않습니다.</h1>
@@ -25,9 +26,13 @@ export function SeventhMovieHLS({ ...props }) {
       console.log("videoRef is null");
       return;
     }
-    const hls = new Hls();
-    hls.loadSource(sampleVideoUrl);
-    hls.attachMedia(videoRef.current);
+    if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
+      videoRef.current.src = sampleVideoUrl;
+    } else {
+      const hls = new Hls();
+      hls.loadSource(sampleVideoUrl);
+      hls.attachMedia(videoRef.current);
+    }
   }, [videoRef]);
 
   useEffect(() => {
@@ -61,7 +66,7 @@ export function SeventhMovieHLS({ ...props }) {
     if (diff > 30 * 1000) {
       diff = 60 * 1000 - diff;
     }
-    if (diff > 500) {
+    if (diff > 3000) {
       videoRef.current.currentTime = now.getSeconds() + now.getMilliseconds() / 1000;
       console.log("current ", currentMillis, "now ", now.getSeconds() * 1000 + now.getMilliseconds(), "diff", diff);
     }
