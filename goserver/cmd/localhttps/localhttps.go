@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
+
+	"github.com/rs/cors"
 )
 
 func main() {
@@ -26,9 +29,26 @@ func main() {
 	// })
 
 	fvideos := http.FileServer(http.Dir("./resource/"))
-	http.Handle("/", fvideos)
+	http.Handle("/videos/", http.StripPrefix("/videos/", fvideos))
+	fs := http.FileServer(http.Dir("./resource/root"))
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println(r.URL.Path)
+		if strings.HasPrefix(r.URL.Path, "/seventh") {
+			http.ServeFile(w, r, "./resource/root/index.html")
+			return
+		}
+		if r.URL.Path != "/" {
+			// fs.ServeHTTP(w, r)
+			// http.StripPrefix("/")
+			fs.ServeHTTP(w, r)
+		} else {
+			http.ServeFile(w, r, "./resource/root/index.html")
+		}
+	})
 
-	if err := http.ListenAndServeTLS("0.0.0.0:8443", "./resource/i.juhyung.dev/fullchain.pem", "./resource/i.juhyung.dev/privkey.pem", nil); err != nil {
+	handler := cors.AllowAll().Handler(http.DefaultServeMux)
+
+	if err := http.ListenAndServeTLS("0.0.0.0:8443", "./resource/i.juhyung.dev/fullchain.pem", "./resource/i.juhyung.dev/privkey.pem", handler); err != nil {
 		fmt.Printf("error starting server: %v", err)
 	}
 
