@@ -11,6 +11,7 @@
   "dependencies": {
     "aframe": "^1.5.0",
     "aframe-react": "^4.4.0",
+    "hls.js": "^1.5.11",
     "preact": "^10.19.6",
     "preact-router": "^4.1.2"
   },

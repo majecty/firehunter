@@ -9,6 +9,10 @@ export function SeventhHome({ ...props }) {
     route(`/seventh/movie/${movieId}`);
   };
 
+  const handleClickHLS = (movieId: number) => {
+    route(`/seventh/moviehls/${movieId}`);
+  }
+
   useEffect(() => {
     const interval = setInterval(() => {
       setCount(new Date().getSeconds());
@@ -34,6 +38,7 @@ export function SeventhHome({ ...props }) {
     <button onClick={() => handleClick(5)}> 다섯번째 패드 </button>
     <button onClick={() => handleClick(6)}> 여섯번째 패드 </button>
     <br />
+    <button onClick={() => handleClickHLS(1)}> HLS 테스트 </button>
     <p>
       영상 싱크: {count}
     </p>

@@ -20,6 +20,7 @@ import { SixthHome } from './pages/sixth/SixthHome'
 import { SixthMovie } from './pages/sixth/SixthMovie'
 import { SeventhHome } from './pages/seventh/SeventhHome'
 import { SeventhMovie } from './pages/seventh/SeventhMovie'
+import { SeventhMovieHLS } from './pages/seventh/SeventhMovieHLS'
 
 export function App() {
   return (
@@ -56,6 +57,7 @@ export function App() {
 
       <SeventhHome path="/seventh"/>
       <SeventhMovie path="/seventh/movie/:id"/>
+      <SeventhMovieHLS path="/seventh/moviehls/:id"/>
     </Router>
     </>
   )

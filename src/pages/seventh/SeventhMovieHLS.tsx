@@ -2,16 +2,33 @@ import { route } from "preact-router";
 import { useEffect, useRef, useState } from "preact/hooks";
 // @ts-ignore
 import { Entity, Scene } from "aframe-react";
+import Hls from "hls.js";
 
-const sampleVideoUrl = "https://192-168-1-2.i.juhyung.dev:8443/videos/0518sample.mp4";
+const sampleVideoUrl = "https://192-168-17-2.i.juhyung.dev:8443/videos/0518hls/0518sample.m3u8";
 
-export function SeventhMovie({ ...props }) {
+export function SeventhMovieHLS({ ...props }) {
   // console.log("Movie", props);
   const [target, setTarget] = useState(0);
   const [current, setCurrent] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [enableSync, setEnableSync] = useState(true);
   const [fov, setFov] = useState(80);
+
+  if (!Hls.isSupported()) {
+    return <div>
+      <h1>이 브라우저는 HLS를 지원하지 않습니다.</h1>
+    </div>
+  }
+
+  useEffect(() => {
+    if (videoRef.current === null) {
+      console.log("videoRef is null");
+      return;
+    }
+    const hls = new Hls();
+    hls.loadSource(sampleVideoUrl);
+    hls.attachMedia(videoRef.current);
+  }, [videoRef]);
 
   useEffect(() => {
     const interval = setInterval(() => {
