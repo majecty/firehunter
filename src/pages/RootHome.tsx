@@ -29,5 +29,8 @@ export function RootHome({ ...props }) {
     <button onClick={() => route('/seventh')}>
       일곱번째 시도: 공유기 안에서 https로 웹페이지와 영상 서빙
     </button>
+    <button onClick={() => route('/browser-test')}>
+      브라우저 테스트
+    </button>
     </div>;
 }
