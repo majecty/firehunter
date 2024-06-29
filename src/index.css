@@ -66,3 +66,9 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+/* @media (orientation: portrait) {
+  body {
+    transform: rotate(-90deg);
+  }
+} */

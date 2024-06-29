@@ -13,6 +13,12 @@ export function SeventhHome({ ...props }) {
     route(`/seventh/moviehls/${movieId}`);
   }
 
+  // useEffect(() => {
+  //   const listening = window.addEventListener('orientationchange', () => {
+
+  //   })
+  // }, []);
+
   useEffect(() => {
     const interval = setInterval(() => {
       setCount(new Date().getSeconds());
